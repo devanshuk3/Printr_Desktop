@@ -1,8 +1,24 @@
 from flask import Flask, request, jsonify
 from backend.database import get_vendor_by_id, add_vendor, update_vendor_upi
 from backend.auth.auth_manager import authenticate_vendor, register_vendor_auth
+import threading
+import time
+import requests
 
 app = Flask(__name__)
+
+# REPLACE THIS with your actual Render URL (e.g., https://your-app.onrender.com)
+SELF_URL = "https://printr-desktop.onrender.com"
+
+def keep_alive():
+    """Function to ping the server every 10 minutes to prevent Render from sleeping."""
+    while True:
+        try:
+            print("Pinging self to stay alive...")
+            requests.get(SELF_URL, timeout=10)
+        except Exception as e:
+            print(f"Keep-alive ping failed: {e}")
+        time.sleep(600) # Wait 10 minutes (600 seconds)
 
 @app.route('/')
 def home():
@@ -31,12 +47,10 @@ def register():
     data = request.json
     vendor_id = data.get('vendor_id')
     password = data.get('password')
-    vendor_info = data.get('vendor_info', {}) # name, shop_name, etc.
+    vendor_info = data.get('vendor_info', {}) 
     
-    # 1. Add vendor to 'vendors' table
     vendor_info['vendor_id'] = vendor_id
     if add_vendor(vendor_info):
-        # 2. Add auth details
         if register_vendor_auth(vendor_id, password):
             return jsonify({"success": True, "message": "Vendor registered successfully"}), 201
         return jsonify({"success": False, "message": "Failed to set password"}), 500
@@ -52,4 +66,6 @@ def update_upi():
     return jsonify({"success": False, "message": "Failed to update UPI"}), 500
 
 if __name__ == "__main__":
+    # Start the keep-alive thread
+    threading.Thread(target=keep_alive, daemon=True).start()
     app.run(host='0.0.0.0', port=5000)
