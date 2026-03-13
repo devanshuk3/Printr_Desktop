@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from PIL import Image
-from backend.auth.auth_manager import authenticate_vendor
+from frontend.api_client import APIClient
 from frontend.theme import Theme
 from tkinter import messagebox
 
@@ -64,9 +64,10 @@ class LoginPage(ctk.CTkFrame):
             messagebox.showwarning("Input Error", "Please enter both Vendor ID and Password")
             return
             
-        if authenticate_vendor(vendor_id, password):
+        result = APIClient.login(vendor_id, password)
+        if result.get("success"):
             self.controller.current_vendor_id = vendor_id
             self.controller.show_main_layout()
             self.controller.show_page("dashboard")
         else:
-            messagebox.showerror("Auth Failed", "Invalid Vendor ID or Password")
+            messagebox.showerror("Auth Failed", result.get("message", "Invalid Vendor ID or Password"))

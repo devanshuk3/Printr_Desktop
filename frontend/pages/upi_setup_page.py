@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from frontend.theme import Theme
-from backend.database import update_vendor_upi
+from frontend.api_client import APIClient
 from tkinter import messagebox
 
 class UpiSetupPage(ctk.CTkFrame):
@@ -45,11 +45,11 @@ class UpiSetupPage(ctk.CTkFrame):
             messagebox.showerror("Session Error", "Could not identify the logged in vendor.")
             return
             
-        if update_vendor_upi(vendor_id, upi_id):
+        result = APIClient.update_upi(vendor_id, upi_id)
+        if result.get("success"):
             messagebox.showinfo("Success", "UPI Configuration saved successfully!")
-            # Optionally update UI or QR code preview here
         else:
-            messagebox.showerror("Database Error", "Failed to update UPI Configuration.")
+            messagebox.showerror("API Error", result.get("message", "Failed to update UPI Configuration."))
 
     def create_card(self, parent, **kwargs):
         return ctk.CTkFrame(parent, fg_color="#FFFFFF", border_width=1, border_color=Theme.CLR_BORDER, corner_radius=12, **kwargs)
