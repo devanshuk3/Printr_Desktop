@@ -21,6 +21,7 @@ class UpiSetupPage(ctk.CTkFrame):
         ctk.CTkLabel(inner, text="Merchant UPI ID", font=Theme.FONTS["body_bold"]).pack(anchor="w")
         self.upi_entry = ctk.CTkEntry(inner, placeholder_text="merchant@upi", height=45, border_color=Theme.CLR_BORDER)
         self.upi_entry.pack(fill="x", pady=(8, 20))
+        self.upi_entry.bind("<Return>", self.handle_save)
 
         # QR Code Display area (Placeholder)
         qr_frame = ctk.CTkFrame(inner, fg_color="#F8FAFC", height=200, corner_radius=12, border_width=1, border_color=Theme.CLR_BORDER)
@@ -34,7 +35,7 @@ class UpiSetupPage(ctk.CTkFrame):
         ctk.CTkButton(inner, text="Save UPI Configuration", height=45, fg_color=Theme.CLR_PRIMARY, hover_color="#1E40AF",
                       font=Theme.FONTS["body_bold"], width=220, command=self.handle_save).pack(anchor="w", pady=(30, 0))
 
-    def handle_save(self):
+    def handle_save(self, event=None):
         upi_id = self.upi_entry.get().strip()
         if not upi_id:
             messagebox.showwarning("Input Error", "Please enter a valid UPI ID")

@@ -1,6 +1,5 @@
 import customtkinter as ctk
-from backend.database import add_vendor
-from backend.auth.auth_manager import register_vendor_auth
+from frontend.api_client import APIClient
 from frontend.theme import Theme
 from tkinter import messagebox
 
@@ -29,11 +28,13 @@ class RegistrationPage(ctk.CTkScrollableFrame):
             ctk.CTkLabel(self, text=label, font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w", padx=40)
             entry = ctk.CTkEntry(self, height=40, placeholder_text=placeholder, fg_color="#F8FAFC", border_color=Theme.CLR_BORDER, show="*" if label == "Password" else "")
             entry.pack(fill="x", pady=(5, 15), padx=40)
+            entry.bind("<Return>", self.handle_registration)
             self.reg_entries[label] = entry
 
         ctk.CTkLabel(self, text="Paper Sizes (comma separated)", font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w", padx=40)
         paper_sizes_entry = ctk.CTkEntry(self, height=40, placeholder_text="A4, A3, letter", fg_color="#F8FAFC", border_color=Theme.CLR_BORDER)
         paper_sizes_entry.pack(fill="x", pady=(5, 15), padx=40)
+        paper_sizes_entry.bind("<Return>", self.handle_registration)
         self.reg_entries["Paper Sizes"] = paper_sizes_entry
 
         ctk.CTkButton(self, text="Create Account", height=50, font=Theme.FONTS["body_bold"], 
@@ -44,7 +45,7 @@ class RegistrationPage(ctk.CTkScrollableFrame):
                       fg_color="transparent", text_color=Theme.CLR_TEXT_SEC, hover_color="#F1F5F9", 
                       command=lambda: controller.show_page("login")).pack(fill="x", pady=(0, 30), padx=40)
 
-    def handle_registration(self):
+    def handle_registration(self, event=None):
         data = {str(k): v.get() for k, v in self.reg_entries.items()}
         
         if not data.get("Vendor ID") or not data.get("Password") or not data.get("Full Name"):
@@ -64,13 +65,16 @@ class RegistrationPage(ctk.CTkScrollableFrame):
                 "paper_sizes": [s.strip() for s in data.get("Paper Sizes").split(",")] if data.get("Paper Sizes") else []
             }
 
-            if add_vendor(vendor_payload):
-                if register_vendor_auth(str(data.get("Vendor ID")), str(data.get("Password"))):
-                    messagebox.showinfo("Success", "Vendor registered successfully! You can now log in.")
-                    self.controller.show_page("login")
-                else:
-                    messagebox.showerror("Error", "Account registration failed in auth system.")
+            result = APIClient.register(
+                vendor_id=data.get("Vendor ID"),
+                password=data.get("Password"),
+                vendor_info=vendor_payload
+            )
+
+            if result.get("success"):
+                messagebox.showinfo("Success", "Vendor registered successfully! You can now log in.")
+                self.controller.show_page("login")
             else:
-                messagebox.showerror("Error", "Could not save vendor details.")
+                messagebox.showerror("Registration Failed", result.get("message", "Error during registration"))
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")

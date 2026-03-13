@@ -23,10 +23,12 @@ class LoginPage(ctk.CTkFrame):
         ctk.CTkLabel(form_frame, text="Vendor ID", font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w")
         self.v_id = ctk.CTkEntry(form_frame, height=45, placeholder_text="Enter Vendor ID", fg_color="#F8FAFC", border_color=Theme.CLR_BORDER)
         self.v_id.pack(fill="x", pady=(8, 20))
+        self.v_id.bind("<Return>", self.handle_login)
 
         ctk.CTkLabel(form_frame, text="Password", font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w")
         self.v_pw = ctk.CTkEntry(form_frame, height=45, placeholder_text="Enter Password", show="*", fg_color="#F8FAFC", border_color=Theme.CLR_BORDER)
         self.v_pw.pack(fill="x", pady=(8, 35))
+        self.v_pw.bind("<Return>", self.handle_login)
 
         ctk.CTkButton(form_frame, text="Sign In", height=50, font=Theme.FONTS["body_bold"], 
                       fg_color=Theme.CLR_PRIMARY, hover_color="#1E40AF", 
@@ -57,7 +59,7 @@ class LoginPage(ctk.CTkFrame):
             ctk.CTkLabel(brand_frame, text="PRINTR", font=Theme.FONTS["logo"], text_color="#FFFFFF").place(relx=0.5, rely=0.4, anchor="center")
             ctk.CTkLabel(brand_frame, text="Professional Print Management", font=Theme.FONTS["body"], text_color="#E0E7FF").place(relx=0.5, rely=0.48, anchor="center")
 
-    def handle_login(self):
+    def handle_login(self, event=None):
         vendor_id = self.v_id.get()
         password = self.v_pw.get()
         if not vendor_id or not password:

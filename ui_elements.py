@@ -24,11 +24,8 @@ class EnterpriseApp(ctk.CTk):
         self.current_page_name = None
         self.current_vendor_id = None
         
-        # Initialize DB
-        try:
-            init_db()
-        except Exception as e:
-            print(f"DB Initialization error: {e}")
+        # The client now talks to the Render API instead of the DB directly.
+        # DB initialization now happens on the Render server.
 
         self.show_page("login")
 
@@ -72,10 +69,15 @@ class EnterpriseApp(ctk.CTk):
     def show_main_layout(self):
         self.clear_screen()
         
-        # 1. Sidebar
-        self.sidebar = ctk.CTkFrame(self, width=240, fg_color=Theme.CLR_SIDEBAR, corner_radius=0, border_width=0)
+        # 1. Sidebar (Scrollable for smaller screens/more items)
+        self.sidebar = ctk.CTkScrollableFrame(self, width=240, fg_color=Theme.CLR_SIDEBAR, corner_radius=0, border_width=0)
         self.sidebar.pack(side="left", fill="y")
-        self.sidebar.pack_propagate(False)
+        # Ensure sidebar doesn't expand horizontally beyond width
+        self.sidebar._parent_canvas.configure(width=240) 
+
+        # Global Linux Scroll Binding (Button-4/5)
+        self.bind_all("<Button-4>", lambda e: self._handle_linux_scroll(e, -1))
+        self.bind_all("<Button-5>", lambda e: self._handle_linux_scroll(e, 1))
 
         sidebar_border = ctk.CTkFrame(self, width=1, fg_color=Theme.CLR_BORDER)
         sidebar_border.pack(side="left", fill="y")
@@ -130,6 +132,27 @@ class EnterpriseApp(ctk.CTk):
                 btn.configure(fg_color=Theme.CLR_PRIMARY, text_color="#FFFFFF", hover_color=Theme.CLR_PRIMARY)
             else:
                 btn.configure(fg_color="transparent", text_color=Theme.CLR_TEXT_MAIN, hover_color="#F1F5F9")
+
+    def _handle_linux_scroll(self, event, direction):
+        """Intelligently handle Linux scroll events based on mouse position."""
+        # Get the widget under the mouse
+        widget = self.winfo_containing(event.x_root, event.y_root)
+        if not widget:
+            return
+
+        # Check if the widget is within the sidebar or content area
+        # and scroll the appropriate container
+        curr = widget
+        while curr:
+            if curr == self.sidebar:
+                try: self.sidebar._parent_canvas.yview_scroll(direction, "units")
+                except: pass
+                return
+            if curr == self.content_area:
+                try: self.content_area._parent_canvas.yview_scroll(direction, "units")
+                except: pass
+                return
+            curr = curr.master
 
     def handle_logout(self):
         self.sidebar = None # Reset state

@@ -66,6 +66,13 @@ def update_upi():
     return jsonify({"success": False, "message": "Failed to update UPI"}), 500
 
 if __name__ == "__main__":
+    # Ensure database tables exist
+    try:
+        from backend.database import init_db
+        init_db()
+    except Exception as e:
+        print(f"Server-side DB Init Error: {e}")
+        
     # Start the keep-alive thread
     threading.Thread(target=keep_alive, daemon=True).start()
     app.run(host='0.0.0.0', port=5000)
