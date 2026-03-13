@@ -65,6 +65,7 @@ class LoginPage(ctk.CTkFrame):
             return
             
         if authenticate_vendor(vendor_id, password):
+            self.controller.current_vendor_id = vendor_id
             self.controller.show_main_layout()
             self.controller.show_page("dashboard")
         else:

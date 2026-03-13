@@ -22,6 +22,7 @@ class EnterpriseApp(ctk.CTk):
         self.content_area = None
         self.nav_buttons = {}
         self.current_page_name = None
+        self.current_vendor_id = None
         
         # Initialize DB
         try:

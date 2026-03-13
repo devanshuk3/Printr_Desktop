@@ -1,5 +1,5 @@
 import bcrypt
-from backend.database import get_connection
+from backend.database import get_connection, sanitize_string
 
 def hash_password(password):
     """Hash a password for storing."""
@@ -12,6 +12,7 @@ def check_password(password, hashed):
 
 def register_vendor_auth(vendor_id, password):
     """Register authentication details for a vendor."""
+    vendor_id = sanitize_string(vendor_id)
     hashed_pw = hash_password(password)
     query = "INSERT INTO vendor_auth (vendor_id, password) VALUES (%s, %s)"
     
@@ -33,6 +34,7 @@ def register_vendor_auth(vendor_id, password):
 
 def authenticate_vendor(vendor_id, password):
     """Authenticate a vendor."""
+    vendor_id = sanitize_string(vendor_id)
     query = "SELECT password FROM vendor_auth WHERE vendor_id = %s"
     conn = get_connection()
     if not conn:

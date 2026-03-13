@@ -1,6 +1,18 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
+import html
+import re
+
+def sanitize_string(value):
+    """Sanitize string inputs to prevent XSS and malformed input."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+        value = html.escape(value)
+        return value
+    return value
 
 # Using the provided connection string
 DB_URL = "postgresql://neondb_owner:npg_50jmSAozVbaF@ep-silent-mountain-a1elnmeh-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
@@ -63,15 +75,15 @@ def add_vendor(vendor_data):
     try:
         cur = conn.cursor()
         cur.execute(query, (
-            vendor_data['vendor_id'],
-            vendor_data['name'],
-            vendor_data['shop_name'],
-            vendor_data['phone'],
-            vendor_data['upi_id'],
-            vendor_data['address'],
-            vendor_data['bw_price'],
-            vendor_data['color_price'],
-            vendor_data['paper_sizes']
+            sanitize_string(vendor_data.get('vendor_id')),
+            sanitize_string(vendor_data.get('name')),
+            sanitize_string(vendor_data.get('shop_name')),
+            sanitize_string(vendor_data.get('phone')),
+            sanitize_string(vendor_data.get('upi_id')),
+            sanitize_string(vendor_data.get('address')),
+            vendor_data.get('bw_price'),
+            vendor_data.get('color_price'),
+            [sanitize_string(ps) for ps in vendor_data.get('paper_sizes', [])] if vendor_data.get('paper_sizes') else None
         ))
         vendor_id = cur.fetchone()[0]
         conn.commit()
@@ -97,6 +109,26 @@ def get_vendor_by_id(vendor_id):
     except Exception as e:
         print(f"Error fetching vendor: {e}")
         return None
+    finally:
+        cur.close()
+        conn.close()
+
+def update_vendor_upi(vendor_id, upi_id):
+    """Update the UPI ID for a specific vendor."""
+    query = "UPDATE vendors SET upi_id = %s WHERE vendor_id = %s RETURNING vendor_id;"
+    conn = get_connection()
+    if not conn:
+        return False
+    
+    try:
+        cur = conn.cursor()
+        cur.execute(query, (sanitize_string(upi_id), sanitize_string(vendor_id)))
+        updated_id = cur.fetchone()
+        conn.commit()
+        return bool(updated_id)
+    except Exception as e:
+        print(f"Error updating UPI ID: {e}")
+        return False
     finally:
         cur.close()
         conn.close()

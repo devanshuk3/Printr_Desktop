@@ -1,5 +1,7 @@
 import customtkinter as ctk
 from frontend.theme import Theme
+from backend.database import update_vendor_upi
+from tkinter import messagebox
 
 class UpiSetupPage(ctk.CTkFrame):
     def __init__(self, parent, controller, **kwargs):
@@ -30,7 +32,24 @@ class UpiSetupPage(ctk.CTkFrame):
 
         # Save Button
         ctk.CTkButton(inner, text="Save UPI Configuration", height=45, fg_color=Theme.CLR_PRIMARY, hover_color="#1E40AF",
-                      font=Theme.FONTS["body_bold"], width=220).pack(anchor="w", pady=(30, 0))
+                      font=Theme.FONTS["body_bold"], width=220, command=self.handle_save).pack(anchor="w", pady=(30, 0))
+
+    def handle_save(self):
+        upi_id = self.upi_entry.get().strip()
+        if not upi_id:
+            messagebox.showwarning("Input Error", "Please enter a valid UPI ID")
+            return
+            
+        vendor_id = getattr(self.controller, 'current_vendor_id', None)
+        if not vendor_id:
+            messagebox.showerror("Session Error", "Could not identify the logged in vendor.")
+            return
+            
+        if update_vendor_upi(vendor_id, upi_id):
+            messagebox.showinfo("Success", "UPI Configuration saved successfully!")
+            # Optionally update UI or QR code preview here
+        else:
+            messagebox.showerror("Database Error", "Failed to update UPI Configuration.")
 
     def create_card(self, parent, **kwargs):
         return ctk.CTkFrame(parent, fg_color="#FFFFFF", border_width=1, border_color=Theme.CLR_BORDER, corner_radius=12, **kwargs)
