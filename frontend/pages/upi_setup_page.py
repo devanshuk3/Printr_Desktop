@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from frontend.theme import Theme
 from frontend.api_client import APIClient
-from tkinter import messagebox
+from frontend.components.modern_dialog import show_modern_message
 
 class UpiSetupPage(ctk.CTkFrame):
     def __init__(self, parent, controller, **kwargs):
@@ -38,19 +38,19 @@ class UpiSetupPage(ctk.CTkFrame):
     def handle_save(self, event=None):
         upi_id = self.upi_entry.get().strip()
         if not upi_id:
-            messagebox.showwarning("Input Error", "Please enter a valid UPI ID")
+            show_modern_message("Input Error", "Please enter a valid UPI ID", icon="warning")
             return
             
         vendor_id = getattr(self.controller, 'current_vendor_id', None)
         if not vendor_id:
-            messagebox.showerror("Session Error", "Could not identify the logged in vendor.")
+            show_modern_message("Session Error", "Could not identify the logged in vendor.", icon="error")
             return
             
         result = APIClient.update_upi(vendor_id, upi_id)
         if result.get("success"):
-            messagebox.showinfo("Success", "UPI Configuration saved successfully!")
+            show_modern_message("Success", "UPI Configuration saved successfully!")
         else:
-            messagebox.showerror("API Error", result.get("message", "Failed to update UPI Configuration."))
+            show_modern_message("API Error", result.get("message", "Failed to update UPI Configuration."), icon="error")
 
     def create_card(self, parent, **kwargs):
         return ctk.CTkFrame(parent, fg_color="#FFFFFF", border_width=1, border_color=Theme.CLR_BORDER, corner_radius=12, **kwargs)

@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from frontend.api_client import APIClient
 from frontend.theme import Theme
-from tkinter import messagebox
+from frontend.components.modern_dialog import show_modern_message
 
 class RegistrationPage(ctk.CTkScrollableFrame):
     def __init__(self, parent, controller, **kwargs):
@@ -27,7 +27,12 @@ class RegistrationPage(ctk.CTkScrollableFrame):
         for label, placeholder in fields:
             ctk.CTkLabel(self, text=label, font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w", padx=40)
             entry = ctk.CTkEntry(self, height=40, placeholder_text=placeholder, fg_color="#F8FAFC", border_color=Theme.CLR_BORDER, show="*" if label == "Password" else "")
-            entry.pack(fill="x", pady=(5, 15), padx=40)
+            entry.pack(fill="x", pady=(5, 0 if label == "Vendor ID" else 15), padx=40)
+            
+            if label == "Vendor ID":
+                ctk.CTkLabel(self, text="* This will be your unique merchant username", 
+                             font=Theme.FONTS["small"], text_color=Theme.CLR_PRIMARY).pack(anchor="w", padx=40, pady=(2, 15))
+            
             entry.bind("<Return>", self.handle_registration)
             self.reg_entries[label] = entry
 
@@ -49,7 +54,7 @@ class RegistrationPage(ctk.CTkScrollableFrame):
         data = {str(k): v.get() for k, v in self.reg_entries.items()}
         
         if not data.get("Vendor ID") or not data.get("Password") or not data.get("Full Name"):
-            messagebox.showwarning("Input Error", "Vendor ID, Password, and Full Name are required.")
+            show_modern_message("Input Error", "Vendor ID, Password, and Full Name are required.", icon="warning")
             return
 
         try:
@@ -72,9 +77,8 @@ class RegistrationPage(ctk.CTkScrollableFrame):
             )
 
             if result.get("success"):
-                messagebox.showinfo("Success", "Vendor registered successfully! You can now log in.")
-                self.controller.show_page("login")
+                show_modern_message("Success", "Vendor registered successfully! You can now log in.", ok_command=lambda: self.controller.show_page("login"))
             else:
-                messagebox.showerror("Registration Failed", result.get("message", "Error during registration"))
+                show_modern_message("Registration Failed", result.get("message", "Error during registration"), icon="error")
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
+            show_modern_message("Error", f"An error occurred: {e}", icon="error")

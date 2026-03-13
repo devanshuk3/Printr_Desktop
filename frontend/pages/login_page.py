@@ -2,7 +2,7 @@ import customtkinter as ctk
 from PIL import Image
 from frontend.api_client import APIClient
 from frontend.theme import Theme
-from tkinter import messagebox
+from frontend.components.modern_dialog import show_modern_message
 
 class LoginPage(ctk.CTkFrame):
     def __init__(self, parent, controller, **kwargs):
@@ -63,7 +63,7 @@ class LoginPage(ctk.CTkFrame):
         vendor_id = self.v_id.get()
         password = self.v_pw.get()
         if not vendor_id or not password:
-            messagebox.showwarning("Input Error", "Please enter both Vendor ID and Password")
+            show_modern_message("Input Error", "Please enter both Vendor ID and Password", icon="warning")
             return
             
         result = APIClient.login(vendor_id, password)
@@ -72,4 +72,4 @@ class LoginPage(ctk.CTkFrame):
             self.controller.show_main_layout()
             self.controller.show_page("dashboard")
         else:
-            messagebox.showerror("Auth Failed", result.get("message", "Invalid Vendor ID or Password"))
+            show_modern_message("Auth Failed", result.get("message", "Invalid Vendor ID or Password"), icon="error")

@@ -10,7 +10,7 @@ class APIClient:
             response = requests.post(f"{API_BASE_URL}/api/login", json={
                 "vendor_id": vendor_id,
                 "password": password
-            }, timeout=10)
+            }, timeout=60)
             return response.json() if response.status_code == 200 else {"success": False, "message": "Login failed"}
         except Exception as e:
             return {"success": False, "message": str(e)}
@@ -22,7 +22,7 @@ class APIClient:
                 "vendor_id": vendor_id,
                 "password": password,
                 "vendor_info": vendor_info
-            }, timeout=10)
+            }, timeout=60)
             return response.json() if response.status_code == 201 else {"success": False, "message": "Registration failed"}
         except Exception as e:
             return {"success": False, "message": str(e)}
@@ -33,7 +33,7 @@ class APIClient:
             response = requests.post(f"{API_BASE_URL}/api/update-upi", json={
                 "vendor_id": vendor_id,
                 "upi_id": upi_id
-            }, timeout=10)
+            }, timeout=60)
             return response.json() if response.status_code == 200 else {"success": False, "message": "Update failed"}
         except Exception as e:
             return {"success": False, "message": str(e)}

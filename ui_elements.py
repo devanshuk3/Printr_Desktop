@@ -23,6 +23,7 @@ class EnterpriseApp(ctk.CTk):
         self.nav_buttons = {}
         self.current_page_name = None
         self.current_vendor_id = None
+        self.active_auth_page = None # Track login/registration page
         
         # The client now talks to the Render API instead of the DB directly.
         # DB initialization now happens on the Render server.
@@ -42,6 +43,7 @@ class EnterpriseApp(ctk.CTk):
                 page = LoginPage(self, self, width=w, height=h)
             else:
                 page = RegistrationPage(self, self, width=w, height=h)
+            self.active_auth_page = page
             page.place(relx=0.5, rely=0.5, anchor="center")
         else:
             if not self.sidebar:
@@ -150,6 +152,10 @@ class EnterpriseApp(ctk.CTk):
                 return
             if curr == self.content_area:
                 try: self.content_area._parent_canvas.yview_scroll(direction, "units")
+                except: pass
+                return
+            if curr == self.active_auth_page and isinstance(self.active_auth_page, ctk.CTkScrollableFrame):
+                try: self.active_auth_page._parent_canvas.yview_scroll(direction, "units")
                 except: pass
                 return
             curr = curr.master
