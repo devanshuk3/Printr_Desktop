@@ -14,8 +14,8 @@ def sanitize_string(value):
         return value
     return value
 
-# Using the provided connection string
-DB_URL = "postgresql://neondb_owner:npg_50jmSAozVbaF@ep-silent-mountain-a1elnmeh-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+# Supabase Connection Details
+DB_URL = "postgresql://postgres:Yadav%405467890@db.jduoonbxrlmifpctncnl.supabase.co:5432/postgres"
 
 def get_connection():
     """Establish and return a database connection."""
