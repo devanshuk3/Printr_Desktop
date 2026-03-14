@@ -26,7 +26,10 @@ class RegistrationPage(ctk.CTkScrollableFrame):
         self.reg_entries = {}
         for label, placeholder in fields:
             ctk.CTkLabel(self, text=label, font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w", padx=40)
-            entry = ctk.CTkEntry(self, height=40, placeholder_text=placeholder, fg_color="#F8FAFC", border_color=Theme.CLR_BORDER, show="*" if label == "Password" else "")
+            entry = ctk.CTkEntry(self, height=40, placeholder_text=placeholder, 
+                                 fg_color=Theme.CLR_INPUT_BG, border_color=Theme.CLR_BORDER, 
+                                 show="*" if label == "Password" else "", 
+                                 text_color=Theme.CLR_INPUT_TEXT, placeholder_text_color=Theme.CLR_TEXT_SEC)
             entry.pack(fill="x", pady=(5, 0 if label == "Vendor ID" else 15), padx=40)
             
             if label == "Vendor ID":
@@ -37,7 +40,9 @@ class RegistrationPage(ctk.CTkScrollableFrame):
             self.reg_entries[label] = entry
 
         ctk.CTkLabel(self, text="Paper Sizes (comma separated)", font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w", padx=40)
-        paper_sizes_entry = ctk.CTkEntry(self, height=40, placeholder_text="A4, A3, letter", fg_color="#F8FAFC", border_color=Theme.CLR_BORDER)
+        paper_sizes_entry = ctk.CTkEntry(self, height=40, placeholder_text="A4, A3, letter", 
+                                         fg_color=Theme.CLR_INPUT_BG, border_color=Theme.CLR_BORDER, 
+                                         text_color=Theme.CLR_INPUT_TEXT, placeholder_text_color=Theme.CLR_TEXT_SEC)
         paper_sizes_entry.pack(fill="x", pady=(5, 15), padx=40)
         paper_sizes_entry.bind("<Return>", self.handle_registration)
         self.reg_entries["Paper Sizes"] = paper_sizes_entry

@@ -20,12 +20,17 @@ class PrinterConfigPage(ctk.CTkFrame):
         box1 = ctk.CTkFrame(inner, fg_color="transparent")
         box1.grid(row=1, column=0, sticky="nsew", padx=(0, 20), pady=(0, 20))
         ctk.CTkLabel(box1, text="Connection Protocol", font=Theme.FONTS["body_bold"]).pack(anchor="w")
-        ctk.CTkComboBox(box1, values=["USB 3.0", "TCP/IP (Ethernet)", "Bluetooth 5.0", "Serial"], height=40).pack(fill="x", pady=8)
+        ctk.CTkComboBox(box1, values=["USB 3.0", "TCP/IP (Ethernet)", "Bluetooth 5.0", "Serial"], height=40,
+                        fg_color=Theme.CLR_INPUT_BG, border_color=Theme.CLR_BORDER,
+                        text_color=Theme.CLR_INPUT_TEXT, button_color=Theme.CLR_PRIMARY,
+                        button_hover_color="#1E40AF").pack(fill="x", pady=8)
 
         box2 = ctk.CTkFrame(inner, fg_color="transparent")
         box2.grid(row=1, column=1, sticky="nsew", pady=(0, 20))
         ctk.CTkLabel(box2, text="Assigned Hardware", font=Theme.FONTS["body_bold"]).pack(anchor="w")
-        ctk.CTkEntry(box2, placeholder_text="Scanning devices...", height=40, border_color=Theme.CLR_BORDER).pack(fill="x", pady=8)
+        ctk.CTkEntry(box2, placeholder_text="Scanning devices...", height=40, 
+                     fg_color=Theme.CLR_INPUT_BG, border_color=Theme.CLR_BORDER,
+                     text_color=Theme.CLR_INPUT_TEXT, placeholder_text_color=Theme.CLR_TEXT_SEC).pack(fill="x", pady=8)
 
         ctk.CTkButton(inner, text="Save & Initialize Interface", height=45, fg_color=Theme.CLR_PRIMARY, 
                       font=Theme.FONTS["body_bold"], width=220).grid(row=2, column=0, sticky="w", pady=(20, 0))

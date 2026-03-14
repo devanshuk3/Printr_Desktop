@@ -100,7 +100,7 @@ class EnterpriseApp(ctk.CTk):
             btn = ctk.CTkButton(
                 self.sidebar, text=text, height=45, fg_color="transparent", 
                 text_color=Theme.CLR_TEXT_MAIN, anchor="w", font=Theme.FONTS["body"],
-                hover_color="#F1F5F9", corner_radius=8, 
+                hover_color="#E2E8F0", corner_radius=8, # Slightly darker hover for clear feedback
                 command=lambda p=page_id: self.show_page(p)
             )
             btn.pack(fill="x", padx=10, pady=2)
@@ -161,6 +161,8 @@ class EnterpriseApp(ctk.CTk):
             curr = curr.master
 
     def handle_logout(self):
+        from frontend.api_client import APIClient
+        APIClient.AUTH_TOKEN = None # Clear security token
         self.sidebar = None # Reset state
         self.show_page("login")
 

@@ -19,7 +19,9 @@ class UpiSetupPage(ctk.CTkFrame):
 
         # UPI ID Input
         ctk.CTkLabel(inner, text="Merchant UPI ID", font=Theme.FONTS["body_bold"]).pack(anchor="w")
-        self.upi_entry = ctk.CTkEntry(inner, placeholder_text="merchant@upi", height=45, border_color=Theme.CLR_BORDER)
+        self.upi_entry = ctk.CTkEntry(inner, placeholder_text="merchant@upi", height=45, 
+                                     fg_color=Theme.CLR_INPUT_BG, border_color=Theme.CLR_BORDER,
+                                     text_color=Theme.CLR_INPUT_TEXT, placeholder_text_color=Theme.CLR_TEXT_SEC)
         self.upi_entry.pack(fill="x", pady=(8, 20))
         self.upi_entry.bind("<Return>", self.handle_save)
 

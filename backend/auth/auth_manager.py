@@ -1,5 +1,27 @@
 import bcrypt
+import jwt
+import datetime
 from backend.database import get_connection, sanitize_string
+
+SECRET_KEY = "your_super_secret_jwt_key" # In production, use environment variables
+
+def create_token(vendor_id):
+    """Generate a JWT token for a vendor."""
+    payload = {
+        "vendor_id": vendor_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+def verify_token(token):
+    """Verify a JWT token."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return payload["vendor_id"]
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
 
 def hash_password(password):
     """Hash a password for storing."""

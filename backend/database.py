@@ -47,6 +47,35 @@ def init_db():
         password TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS members (
+        member_id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) UNIQUE,
+        upi_id VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS print_queue (
+        order_id SERIAL PRIMARY KEY,
+        order_number VARCHAR(20) UNIQUE NOT NULL,
+        vendor_id VARCHAR(50) REFERENCES vendors(vendor_id) ON DELETE CASCADE,
+        member_id INTEGER REFERENCES members(member_id) ON DELETE SET NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_type VARCHAR(10),
+        page_count INTEGER,
+        status VARCHAR(20) DEFAULT 'Pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS printer_config (
+        id SERIAL PRIMARY KEY,
+        vendor_id VARCHAR(50) REFERENCES vendors(vendor_id) ON DELETE CASCADE,
+        printer_name VARCHAR(100),
+        status VARCHAR(20) DEFAULT 'Offline',
+        last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     """
     conn = get_connection()
     if conn:
@@ -55,11 +84,67 @@ def init_db():
             cur.execute(schema)
             conn.commit()
             print("Database schema initialized successfully.")
+            
+            # Seed data if empty (for demonstration/dashboard)
+            cur.execute("SELECT COUNT(*) FROM members")
+            if cur.fetchone()[0] == 0:
+                print("Seeding initial data...")
+                cur.execute("INSERT INTO members (name, email) VALUES ('Aditya Verma', 'aditya@example.com'), ('Sneha Kapoor', 'sneha@example.com'), ('Rohan Das', 'rohan@example.com')")
+                conn.commit()
         except Exception as e:
             print(f"Error initializing schema: {e}")
         finally:
             cur.close()
             conn.close()
+
+def get_dashboard_stats(vendor_id):
+    """Fetch summary stats for the dashboard cards."""
+    conn = get_connection()
+    if not conn: return None
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        # Pending Orders count
+        cur.execute("SELECT COUNT(*) FROM print_queue WHERE vendor_id = %s AND status = 'Pending'", (vendor_id,))
+        pending = cur.fetchone()['count']
+        
+        # Printer Status
+        cur.execute("SELECT status FROM printer_config WHERE vendor_id = %s ORDER BY last_synced DESC LIMIT 1", (vendor_id,))
+        printer_status = cur.fetchone()
+        status = printer_status['status'] if printer_status else "Online" # Fallback for demo
+        
+        return {
+            "pending_orders": pending,
+            "printer_status": status,
+            "cloud_sync": "Synced"
+        }
+    except Exception as e:
+        print(f"Stats Error: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def get_print_queue(vendor_id):
+    """Fetch the active print queue for a vendor."""
+    query = """
+    SELECT q.order_number, q.file_name, q.page_count, q.status, m.name as member_name
+    FROM print_queue q
+    JOIN members m ON q.member_id = m.member_id
+    WHERE q.vendor_id = %s
+    ORDER BY q.created_at DESC
+    """
+    conn = get_connection()
+    if not conn: return []
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(query, (vendor_id,))
+        return cur.fetchall()
+    except Exception as e:
+        print(f"Queue Error: {e}")
+        return []
+    finally:
+        cur.close()
+        conn.close()
 
 def add_vendor(vendor_data):
     """Insert a new vendor into the database."""

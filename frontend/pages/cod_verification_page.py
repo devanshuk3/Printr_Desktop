@@ -21,7 +21,9 @@ class CodVerificationPage(ctk.CTkFrame):
         ctk.CTkLabel(inner_input, text="Scan or manually enter the Order ID to verify payment", font=Theme.FONTS["body"], text_color=Theme.CLR_TEXT_SEC).pack(anchor="w", pady=(0, 30))
         
         ctk.CTkLabel(inner_input, text="Scan Order ID", font=Theme.FONTS["body_bold"]).pack(anchor="w")
-        order_entry = ctk.CTkEntry(inner_input, placeholder_text="e.g. #ORD-7721", height=50, border_color=Theme.CLR_BORDER, fg_color="#F8FAFC")
+        order_entry = ctk.CTkEntry(inner_input, placeholder_text="e.g. #ORD-7721", height=50, 
+                                   fg_color=Theme.CLR_INPUT_BG, border_color=Theme.CLR_BORDER,
+                                   text_color=Theme.CLR_INPUT_TEXT, placeholder_text_color=Theme.CLR_TEXT_SEC)
         order_entry.pack(fill="x", pady=(8, 40))
 
         btn_frame = ctk.CTkFrame(inner_input, fg_color="transparent")
@@ -35,7 +37,7 @@ class CodVerificationPage(ctk.CTkFrame):
 
         log_card = self.create_card(main_grid)
         log_card.grid(row=0, column=1, sticky="nsew")
-        log_card.configure(fg_color="#F8FAFC")
+        log_card.configure(fg_color=Theme.CLR_BG) # Use theme background
 
         ctk.CTkLabel(log_card, text="Verification Activity", font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(pady=(30, 20))
         

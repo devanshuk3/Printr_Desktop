@@ -1,4 +1,5 @@
 import customtkinter as ctk
+ctk.set_appearance_mode("light")
 
 class Theme:
     CLR_BG = "#F8F9FC"
@@ -10,6 +11,8 @@ class Theme:
     CLR_TEXT_MAIN = "#1E293B"
     CLR_TEXT_SEC = "#64748B"
     CLR_BORDER = "#E2E8F0"
+    CLR_INPUT_BG = "#FFFFFF" # Pure white for inputs
+    CLR_INPUT_TEXT = "#1E293B"
 
     FONTS = {
         "h1": ("Segoe UI", 28, "bold"),

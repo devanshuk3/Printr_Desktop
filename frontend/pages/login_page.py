@@ -21,18 +21,23 @@ class LoginPage(ctk.CTkFrame):
 
         # Inputs
         ctk.CTkLabel(form_frame, text="Vendor ID", font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w")
-        self.v_id = ctk.CTkEntry(form_frame, height=45, placeholder_text="Enter Vendor ID", fg_color="#F8FAFC", border_color=Theme.CLR_BORDER)
+        self.v_id = ctk.CTkEntry(form_frame, height=45, placeholder_text="Enter Vendor ID", 
+                                 fg_color=Theme.CLR_INPUT_BG, border_color=Theme.CLR_BORDER, 
+                                 text_color=Theme.CLR_INPUT_TEXT, placeholder_text_color=Theme.CLR_TEXT_SEC)
         self.v_id.pack(fill="x", pady=(8, 20))
         self.v_id.bind("<Return>", self.handle_login)
 
         ctk.CTkLabel(form_frame, text="Password", font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_MAIN).pack(anchor="w")
-        self.v_pw = ctk.CTkEntry(form_frame, height=45, placeholder_text="Enter Password", show="*", fg_color="#F8FAFC", border_color=Theme.CLR_BORDER)
+        self.v_pw = ctk.CTkEntry(form_frame, height=45, placeholder_text="Enter Password", show="*", 
+                                 fg_color=Theme.CLR_INPUT_BG, border_color=Theme.CLR_BORDER, 
+                                 text_color=Theme.CLR_INPUT_TEXT, placeholder_text_color=Theme.CLR_TEXT_SEC)
         self.v_pw.pack(fill="x", pady=(8, 35))
         self.v_pw.bind("<Return>", self.handle_login)
 
-        ctk.CTkButton(form_frame, text="Sign In", height=50, font=Theme.FONTS["body_bold"], 
-                      fg_color=Theme.CLR_PRIMARY, hover_color="#1E40AF", 
-                      command=self.handle_login).pack(fill="x", pady=(0, 15))
+        self.signin_btn = ctk.CTkButton(form_frame, text="Sign In", height=50, font=Theme.FONTS["body_bold"], 
+                      fg_color=Theme.CLR_PRIMARY, hover_color="#1D4ED8", 
+                      command=self.handle_login)
+        self.signin_btn.pack(fill="x", pady=(0, 15))
 
         ctk.CTkButton(form_frame, text="New Vendor? Register Here", height=40, font=Theme.FONTS["small"], 
                       fg_color="transparent", text_color=Theme.CLR_TEXT_SEC, hover_color="#F1F5F9", 
@@ -66,10 +71,18 @@ class LoginPage(ctk.CTkFrame):
             show_modern_message("Input Error", "Please enter both Vendor ID and Password", icon="warning")
             return
             
-        result = APIClient.login(vendor_id, password)
-        if result.get("success"):
-            self.controller.current_vendor_id = vendor_id
-            self.controller.show_main_layout()
-            self.controller.show_page("dashboard")
-        else:
-            show_modern_message("Auth Failed", result.get("message", "Invalid Vendor ID or Password"), icon="error")
+        # UI Feedback: Show loading state
+        self.signin_btn.configure(state="disabled", text="Signing In...")
+        self.update_idletasks() # Force UI update
+
+        try:
+            result = APIClient.login(vendor_id, password)
+            if result.get("success"):
+                self.controller.current_vendor_id = vendor_id
+                self.controller.show_main_layout()
+                self.controller.show_page("dashboard")
+            else:
+                show_modern_message("Auth Failed", result.get("message", "Invalid Vendor ID or Password"), icon="error")
+        finally:
+            # Re-enable button
+            self.signin_btn.configure(state="normal", text="Sign In")
