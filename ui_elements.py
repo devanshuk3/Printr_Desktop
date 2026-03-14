@@ -28,7 +28,14 @@ class EnterpriseApp(ctk.CTk):
         # The client now talks to the Render API instead of the DB directly.
         # DB initialization now happens on the Render server.
 
-        self.show_page("login")
+        # Attempt to resume session
+        from frontend.api_client import APIClient
+        session = APIClient.load_session()
+        if session:
+            self.current_vendor_id = session.get("vendor_id")
+            self.show_page("dashboard")
+        else:
+            self.show_page("login")
 
     def clear_screen(self):
         for widget in self.winfo_children():
@@ -162,7 +169,7 @@ class EnterpriseApp(ctk.CTk):
 
     def handle_logout(self):
         from frontend.api_client import APIClient
-        APIClient.AUTH_TOKEN = None # Clear security token
+        APIClient.clear_session()
         self.sidebar = None # Reset state
         self.show_page("login")
 

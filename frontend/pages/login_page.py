@@ -84,5 +84,6 @@ class LoginPage(ctk.CTkFrame):
             else:
                 show_modern_message("Auth Failed", result.get("message", "Invalid Vendor ID or Password"), icon="error")
         finally:
-            # Re-enable button
-            self.signin_btn.configure(state="normal", text="Sign In")
+            # Re-enable button ONLY if the page hasn't been destroyed (e.g. after successful login)
+            if self.winfo_exists():
+                self.signin_btn.configure(state="normal", text="Sign In")

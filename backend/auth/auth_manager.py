@@ -10,7 +10,7 @@ def create_token(vendor_id):
     """Generate a JWT token for a vendor."""
     payload = {
         "vendor_id": vendor_id,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7)
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 

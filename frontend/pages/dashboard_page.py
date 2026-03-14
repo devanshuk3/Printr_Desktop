@@ -9,25 +9,28 @@ class DashboardPage(ctk.CTkFrame):
         self.vendor_id = getattr(controller, 'current_vendor_id', None)
 
         if self.vendor_id:
-            # Seed demo data if testing (optional, helps visualize new schema)
-            APIClient.seed_demo(self.vendor_id)
+            # Fetch actual data from API
+            stats_data = APIClient.get_dashboard_stats(self.vendor_id)
+            stats = stats_data.get("stats", {}) if stats_data.get("success") else {}
             
-        # Fetch actual data from API
-        stats_data = APIClient.get_dashboard_stats(self.vendor_id)
-        stats = stats_data.get("stats", {}) if stats_data.get("success") else {}
-        
-        queue_data = APIClient.get_print_queue(self.vendor_id)
-        active_queue = queue_data.get("queue", []) if queue_data.get("success") else []
+            queue_data = APIClient.get_print_queue(self.vendor_id)
+            active_queue = queue_data.get("queue", []) if queue_data.get("success") else []
+        else:
+            stats = {}
+            active_queue = []
 
         # Stats Grid
         stats_frame = ctk.CTkFrame(self, fg_color="transparent")
         stats_frame.pack(fill="x", pady=(0, 40))
         stats_frame.grid_columnconfigure((0, 1, 2), weight=1)
 
+        printer_status = stats.get("printer_status", "Online")
+        status_color = Theme.CLR_SUCCESS if printer_status == "Online" else Theme.CLR_DANGER
+        
         display_stats = [
             ("Pending Orders", str(stats.get("pending_orders", 0)), Theme.CLR_PRIMARY, "Requires Action"),
-            ("Printer Status", str(stats.get("printer_status", "Online")), Theme.CLR_SUCCESS, "Ready to Print"),
-            ("Cloud Sync", "Synced", Theme.CLR_SUCCESS, "Last: Just now")
+            ("Printer Status", printer_status, status_color, "Verified" if printer_status == "Online" else "Check Connection"),
+            ("Cloud Sync", "Synced", Theme.CLR_SUCCESS, f"Last: {stats.get('last_synced', 'Just now')}")
         ]
         
         for i, (t, v, color, sub) in enumerate(display_stats):
@@ -43,7 +46,7 @@ class DashboardPage(ctk.CTkFrame):
         queue_header.pack(fill="x", pady=(0, 20))
         
         ctk.CTkLabel(queue_header, text="Current Print Queue", font=Theme.FONTS["h2"], text_color=Theme.CLR_TEXT_MAIN).pack(side="left")
-        ctk.CTkLabel(queue_header, text=f"{len(active_queue)} active members", font=Theme.FONTS["small"], text_color=Theme.CLR_TEXT_SEC).pack(side="left", padx=15, pady=(5,0))
+        ctk.CTkLabel(queue_header, text=f"{len(active_queue)} active orders", font=Theme.FONTS["small"], text_color=Theme.CLR_TEXT_SEC).pack(side="left", padx=15, pady=(5,0))
 
         # Status Colors Mapping
         status_colors = {

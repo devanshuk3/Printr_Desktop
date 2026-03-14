@@ -108,14 +108,16 @@ def get_dashboard_stats(vendor_id):
         pending = cur.fetchone()['count']
         
         # Printer Status
-        cur.execute("SELECT status FROM printer_config WHERE vendor_id = %s ORDER BY last_synced DESC LIMIT 1", (vendor_id,))
-        printer_status = cur.fetchone()
-        status = printer_status['status'] if printer_status else "Online" # Fallback for demo
+        cur.execute("SELECT status, last_synced FROM printer_config WHERE vendor_id = %s ORDER BY last_synced DESC LIMIT 1", (vendor_id,))
+        printer_info = cur.fetchone()
+        
+        status = printer_info['status'] if printer_info else "Online"
+        last_synced = printer_info['last_synced'].strftime("%H:%M") if printer_info and printer_info['last_synced'] else "Just now"
         
         return {
             "pending_orders": pending,
             "printer_status": status,
-            "cloud_sync": "Synced"
+            "last_synced": last_synced
         }
     except Exception as e:
         print(f"Stats Error: {e}")
@@ -127,9 +129,9 @@ def get_dashboard_stats(vendor_id):
 def get_print_queue(vendor_id):
     """Fetch the active print queue for a vendor."""
     query = """
-    SELECT q.order_number, q.file_name, q.page_count, q.status, m.name as member_name
+    SELECT q.order_number, q.file_name, q.page_count, q.status, COALESCE(m.name, 'Guest') as member_name
     FROM print_queue q
-    JOIN members m ON q.member_id = m.member_id
+    LEFT JOIN members m ON q.member_id = m.member_id
     WHERE q.vendor_id = %s
     ORDER BY q.created_at DESC
     """

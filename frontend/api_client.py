@@ -1,12 +1,45 @@
 import requests
+import os
+import json
 
 # REPLACE THIS with your actual Render URL after deploying
 # Production URL for Render deployment
 API_BASE_URL = "https://printr-desktop.onrender.com" 
 # Use "http://localhost:5000" for local development
 
+SESSION_FILE = os.path.expanduser("~/.printr_session.json")
+
 class APIClient:
     AUTH_TOKEN = None
+
+    @staticmethod
+    def save_session(vendor_id, token):
+        try:
+            with open(SESSION_FILE, 'w') as f:
+                json.dump({"vendor_id": vendor_id, "token": token}, f)
+        except Exception as e:
+            print(f"Failed to save session: {e}")
+
+    @staticmethod
+    def load_session():
+        if os.path.exists(SESSION_FILE):
+            try:
+                with open(SESSION_FILE, 'r') as f:
+                    data = json.load(f)
+                    APIClient.AUTH_TOKEN = data.get("token")
+                    return data
+            except Exception as e:
+                print(f"Failed to load session: {e}")
+        return None
+
+    @staticmethod
+    def clear_session():
+        APIClient.AUTH_TOKEN = None
+        if os.path.exists(SESSION_FILE):
+            try:
+                os.remove(SESSION_FILE)
+            except:
+                pass
 
     @staticmethod
     def login(vendor_id, password):
@@ -17,7 +50,9 @@ class APIClient:
             }, timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                APIClient.AUTH_TOKEN = data.get("token")
+                token = data.get("token")
+                APIClient.AUTH_TOKEN = token
+                APIClient.save_session(vendor_id, token)
                 return data
             return {"success": False, "message": "Login failed"}
         except Exception as e:
