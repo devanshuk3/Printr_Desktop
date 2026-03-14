@@ -36,13 +36,18 @@ SELF_URL = "https://printr-desktop.onrender.com"
 
 def keep_alive():
     """Function to ping the server every 10 minutes to prevent Render from sleeping."""
+    # Give the server 20 seconds to fully boot before first ping
+    time.sleep(20)
     while True:
         try:
-            print("Pinging self to stay alive...")
+            print(f"Pinging {SELF_URL}...")
             requests.get(SELF_URL, timeout=10)
         except Exception as e:
             print(f"Keep-alive ping failed: {e}")
-        time.sleep(600) # Wait 10 minutes (600 seconds)
+        time.sleep(600) # 10 minutes
+
+# Start keep-alive thread immediately (runs in production/Gunicorn)
+threading.Thread(target=keep_alive, daemon=True).start()
 
 @app.route('/')
 def home():
@@ -133,14 +138,12 @@ def update_upi(vendor_id):
         return jsonify({"success": True, "message": "UPI updated"}), 200
     return jsonify({"success": False, "message": "Failed to update UPI"}), 500
 
+# Ensure database tables exist on startup
+try:
+    from backend.database import init_db
+    init_db()
+except Exception as e:
+    print(f"Server-side DB Init Error: {e}")
+
 if __name__ == "__main__":
-    # Ensure database tables exist
-    try:
-        from backend.database import init_db
-        init_db()
-    except Exception as e:
-        print(f"Server-side DB Init Error: {e}")
-        
-    # Start the keep-alive thread
-    threading.Thread(target=keep_alive, daemon=True).start()
     app.run(host='0.0.0.0', port=5000)
