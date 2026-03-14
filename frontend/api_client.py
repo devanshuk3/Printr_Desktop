@@ -1,9 +1,9 @@
 import requests
 
 # REPLACE THIS with your actual Render URL after deploying
-# Using local URL for immediate development response. 
-# Switch to "https://printr-desktop.onrender.com" for production.
-API_BASE_URL = "http://localhost:5000" 
+# Production URL for Render deployment
+API_BASE_URL = "https://printr-desktop.onrender.com" 
+# Use "http://localhost:5000" for local development
 
 class APIClient:
     AUTH_TOKEN = None

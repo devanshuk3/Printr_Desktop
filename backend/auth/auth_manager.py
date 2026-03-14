@@ -1,9 +1,10 @@
 import bcrypt
 import jwt
 import datetime
+import os
 from backend.database import get_connection, sanitize_string
 
-SECRET_KEY = "your_super_secret_jwt_key" # In production, use environment variables
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your_super_secret_jwt_key")
 
 def create_token(vendor_id):
     """Generate a JWT token for a vendor."""

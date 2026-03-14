@@ -15,7 +15,7 @@ def sanitize_string(value):
     return value
 
 # Supabase Connection Details (Pooled Connection)
-DB_URL = "postgresql://postgres.jduoonbxrlmifpctncnl:Yadav%405467890@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres.jduoonbxrlmifpctncnl:Yadav%405467890@aws-1-ap-south-1.pooler.supabase.com:5432/postgres")
 
 def get_connection():
     """Establish and return a database connection."""
