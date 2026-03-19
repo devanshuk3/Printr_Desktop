@@ -6,3 +6,4 @@ bcrypt
 flask
 gunicorn
 PyJWT
+boto3

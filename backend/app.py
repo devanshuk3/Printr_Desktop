@@ -2,11 +2,15 @@ from flask import Flask, request, jsonify
 from functools import wraps
 from backend.database import (
     get_vendor_by_id, add_vendor, update_vendor_upi, 
-    get_dashboard_stats, get_print_queue
+    get_dashboard_stats, get_print_queue,
+    get_printer_config, update_printer_config
 )
 from backend.auth.auth_manager import (
     authenticate_vendor, register_vendor_auth, 
     create_token, verify_token
+)
+from backend.r2_storage import (
+    list_vendor_files, get_file_download_url, delete_file as r2_delete_file
 )
 import threading
 import time
@@ -137,6 +141,72 @@ def update_upi(vendor_id):
     if update_vendor_upi(vendor_id, upi_id):
         return jsonify({"success": True, "message": "UPI updated"}), 200
     return jsonify({"success": False, "message": "Failed to update UPI"}), 500
+
+@app.route('/api/vendor-info', methods=['GET'])
+@token_required
+def vendor_info_route(vendor_id):
+    vendor = get_vendor_by_id(vendor_id)
+    if vendor:
+        return jsonify({"success": True, "vendor": vendor}), 200
+    return jsonify({"success": False, "message": "Vendor not found"}), 404
+
+@app.route('/api/printer-config', methods=['GET', 'POST'])
+@token_required
+def printer_config_route(vendor_id):
+    if request.method == 'GET':
+        config = get_printer_config(vendor_id)
+        return jsonify({"success": True, "config": config}), 200
+    else:
+        data = request.json
+        printer_name = data.get('printer_name')
+        status = data.get('status', 'Online')
+        if update_printer_config(vendor_id, printer_name, status):
+            return jsonify({"success": True, "message": "Printer config updated"}), 200
+        return jsonify({"success": False, "message": "Failed to update config"}), 500
+
+# ──────────── R2 Cloud Storage Endpoints ────────────
+
+@app.route('/api/r2/files', methods=['GET'])
+@token_required
+def r2_list_files(vendor_id):
+    """List all files in the vendor's R2 folder."""
+    files = list_vendor_files(vendor_id)
+    return jsonify({"success": True, "files": files}), 200
+
+@app.route('/api/r2/download', methods=['POST'])
+@token_required
+def r2_download_file(vendor_id):
+    """Generate a pre-signed download URL for a file."""
+    data = request.json
+    file_key = data.get('file_key')
+    if not file_key:
+        return jsonify({"success": False, "message": "file_key is required"}), 400
+    
+    # Security: ensure the file belongs to this vendor
+    if not file_key.startswith(f"{vendor_id}/"):
+        return jsonify({"success": False, "message": "Unauthorized access to file"}), 403
+    
+    url = get_file_download_url(file_key)
+    if url:
+        return jsonify({"success": True, "download_url": url}), 200
+    return jsonify({"success": False, "message": "Failed to generate download URL"}), 500
+
+@app.route('/api/r2/delete', methods=['POST'])
+@token_required
+def r2_delete_file_route(vendor_id):
+    """Delete a file from the vendor's R2 folder."""
+    data = request.json
+    file_key = data.get('file_key')
+    if not file_key:
+        return jsonify({"success": False, "message": "file_key is required"}), 400
+    
+    # Security: ensure the file belongs to this vendor
+    if not file_key.startswith(f"{vendor_id}/"):
+        return jsonify({"success": False, "message": "Unauthorized access to file"}), 403
+    
+    if r2_delete_file(file_key):
+        return jsonify({"success": True, "message": "File deleted successfully"}), 200
+    return jsonify({"success": False, "message": "Failed to delete file"}), 500
 
 # Ensure database tables exist on startup
 try:

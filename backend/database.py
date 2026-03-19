@@ -220,5 +220,41 @@ def update_vendor_upi(vendor_id, upi_id):
         cur.close()
         conn.close()
 
+def get_printer_config(vendor_id):
+    """Fetch the latest printer configuration for a vendor."""
+    query = "SELECT * FROM printer_config WHERE vendor_id = %s ORDER BY last_synced DESC LIMIT 1"
+    conn = get_connection()
+    if not conn: return None
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(query, (vendor_id,))
+        return cur.fetchone()
+    except Exception as e:
+        print(f"Printer Config Error: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def update_printer_config(vendor_id, printer_name, status):
+    """Update or insert printer configuration."""
+    query = """
+    INSERT INTO printer_config (vendor_id, printer_name, status, last_synced)
+    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+    """
+    conn = get_connection()
+    if not conn: return False
+    try:
+        cur = conn.cursor()
+        cur.execute(query, (vendor_id, sanitize_string(printer_name), sanitize_string(status)))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating printer config: {e}")
+        return False
+    finally:
+        cur.close()
+        conn.close()
+
 if __name__ == "__main__":
     init_db()

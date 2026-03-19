@@ -34,8 +34,21 @@ class UpiSetupPage(ctk.CTkFrame):
         ctk.CTkLabel(qr_frame, text="The QR code will be generated automatically based on your UPI ID", font=Theme.FONTS["small"], text_color=Theme.CLR_TEXT_SEC).place(relx=0.5, rely=0.6, anchor="center")
 
         # Save Button
-        ctk.CTkButton(inner, text="Save UPI Configuration", height=45, fg_color=Theme.CLR_PRIMARY, hover_color="#1E40AF",
-                      font=Theme.FONTS["body_bold"], width=220, command=self.handle_save).pack(anchor="w", pady=(30, 0))
+        self.save_btn = ctk.CTkButton(inner, text="Save UPI Configuration", height=45, fg_color=Theme.CLR_PRIMARY, hover_color="#1E40AF",
+                      font=Theme.FONTS["body_bold"], width=220, command=self.handle_save)
+        self.save_btn.pack(anchor="w", pady=(30, 0))
+
+        self.load_current_upi()
+
+    def load_current_upi(self):
+        vendor_id = getattr(self.controller, 'current_vendor_id', None)
+        if vendor_id:
+            result = APIClient.get_vendor_info(vendor_id)
+            if result.get("success"):
+                vendor = result.get("vendor", {})
+                if vendor.get("upi_id"):
+                    self.upi_entry.delete(0, 'end')
+                    self.upi_entry.insert(0, vendor.get("upi_id"))
 
     def handle_save(self, event=None):
         upi_id = self.upi_entry.get().strip()
