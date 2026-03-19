@@ -156,9 +156,8 @@ class DashboardPage(ctk.CTkFrame):
                       fg_color=Theme.CLR_PRIMARY, hover_color="#1D4ED8", 
                       command=lambda f=file_info: self._handle_print(f)).pack(side="left", padx=5)
 
-        # NEW: Mark as Printed Button (replaces Cancel if we want, or side by side)
-        # Actually, let's make it a confirm action
-        ctk.CTkButton(actions_frame, text="✓ Done", width=60, height=34, font=Theme.FONTS["small"], 
+        # Payment Verification Button
+        ctk.CTkButton(actions_frame, text="✓ Verify Payment", width=120, height=34, font=Theme.FONTS["small"], 
                       fg_color="#F0FDF4", border_width=1, border_color="#16A34A", 
                       text_color="#16A34A", hover_color="#DCFCE7",
                       command=lambda f=file_info: self._handle_mark_printed(f)).pack(side="left", padx=5)
