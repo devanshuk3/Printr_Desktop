@@ -3,7 +3,8 @@ from functools import wraps
 from backend.database import (
     get_vendor_by_id, add_vendor, update_vendor_upi, 
     get_dashboard_stats, get_print_queue,
-    get_printer_config, update_printer_config
+    get_printer_config, update_printer_config,
+    mark_as_printed
 )
 from backend.auth.auth_manager import (
     authenticate_vendor, register_vendor_auth, 
@@ -214,6 +215,23 @@ try:
     init_db()
 except Exception as e:
     print(f"Server-side DB Init Error: {e}")
+
+@app.route('/api/r2/printed', methods=['POST'])
+@token_required
+def mark_file_printed(vendor_id):
+    """Mark a file as printed in the database."""
+    data = request.get_json()
+    file_name = data.get('file_name')
+    
+    if not file_name:
+        return jsonify({"success": False, "message": "File name is required"}), 400
+        
+    success = mark_as_printed(vendor_id, file_name)
+    
+    if success:
+        return jsonify({"success": True, "message": f"File '{file_name}' marked as printed."})
+    else:
+        return jsonify({"success": False, "message": "Failed to update status."}), 404
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)

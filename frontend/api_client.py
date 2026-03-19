@@ -194,3 +194,17 @@ class APIClient:
             return {"success": False, "message": "Failed to delete file"}
         except Exception as e:
             return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def mark_as_printed(file_name):
+        """Signal the backend that a file has been printed successfully."""
+        try:
+            response = requests.post(
+                f"{API_BASE_URL}/api/r2/printed",
+                json={"file_name": file_name},
+                headers=APIClient.get_headers(),
+                timeout=10
+            )
+            return response.json() if response.status_code == 200 else {"success": False}
+        except Exception as e:
+            return {"success": False, "message": str(e)}

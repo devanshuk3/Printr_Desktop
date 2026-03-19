@@ -236,6 +236,29 @@ def get_printer_config(vendor_id):
         cur.close()
         conn.close()
 
+def mark_as_printed(vendor_id, file_name):
+    """Mark an order status as 'Printed' in the database."""
+    query = """
+    UPDATE print_queue 
+    SET status = 'Printed', updated_at = CURRENT_TIMESTAMP 
+    WHERE vendor_id = %s AND file_name = %s 
+    RETURNING order_id;
+    """
+    conn = get_connection()
+    if not conn: return False
+    try:
+        cur = conn.cursor()
+        cur.execute(query, (vendor_id, sanitize_string(file_name)))
+        result = cur.fetchone()
+        conn.commit()
+        return bool(result)
+    except Exception as e:
+        print(f"Error marking as printed: {e}")
+        return False
+    finally:
+        cur.close()
+        conn.close()
+
 def update_printer_config(vendor_id, printer_name, status):
     """Update or insert printer configuration."""
     query = """
@@ -255,6 +278,4 @@ def update_printer_config(vendor_id, printer_name, status):
     finally:
         cur.close()
         conn.close()
-
-if __name__ == "__main__":
     init_db()

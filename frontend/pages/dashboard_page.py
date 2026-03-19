@@ -16,6 +16,7 @@ class DashboardPage(ctk.CTkFrame):
         self.vendor_id = getattr(controller, 'current_vendor_id', None)
         self.files = []
         self.file_cards = {}
+        self.printed_keys = set() # Track keys that were "printed" during this session
 
         # 1. Stats Grid (Top)
         self.stats_container = ctk.CTkFrame(self, fg_color="transparent")
@@ -90,21 +91,21 @@ class DashboardPage(ctk.CTkFrame):
             self.after(0, lambda: self.file_count_label.configure(text="Storage Connect Error"))
 
     def _render_queue(self, files):
-        self.files = files
-        self.file_count_label.configure(text=f"{len(files)} jobs waiting")
+        self.files = [f for f in files if f["key"] not in self.printed_keys] # Hide local printed ones immediately
+        self.file_count_label.configure(text=f"{len(self.files)} jobs waiting")
         
         if hasattr(self, 'stat_labels') and len(self.stat_labels) > 0:
-            self.stat_labels[0].configure(text=str(len(files)))
+            self.stat_labels[0].configure(text=str(len(self.files)))
 
         for widget in self.queue_container.winfo_children():
             widget.destroy()
         self.file_cards.clear()
 
-        if not files:
+        if not self.files:
             self._render_empty_state()
             return
 
-        for idx, file_info in enumerate(files):
+        for idx, file_info in enumerate(self.files):
             card = self._create_queue_card(self.queue_container, file_info)
             card.pack(fill="x", pady=(0, 10))
             self.file_cards[file_info["key"]] = card
@@ -155,7 +156,14 @@ class DashboardPage(ctk.CTkFrame):
                       fg_color=Theme.CLR_PRIMARY, hover_color="#1D4ED8", 
                       command=lambda f=file_info: self._handle_print(f)).pack(side="left", padx=5)
 
-        # Cancel Button (Delete)
+        # NEW: Mark as Printed Button (replaces Cancel if we want, or side by side)
+        # Actually, let's make it a confirm action
+        ctk.CTkButton(actions_frame, text="✓ Done", width=60, height=34, font=Theme.FONTS["small"], 
+                      fg_color="#F0FDF4", border_width=1, border_color="#16A34A", 
+                      text_color="#16A34A", hover_color="#DCFCE7",
+                      command=lambda f=file_info: self._handle_mark_printed(f)).pack(side="left", padx=5)
+
+        # Cancel Button
         ctk.CTkButton(actions_frame, text="✕", width=34, height=34, font=Theme.FONTS["small"], 
                       fg_color="transparent", border_width=1, border_color=Theme.CLR_DANGER, 
                       text_color=Theme.CLR_DANGER, hover_color="#FEF2F2",
@@ -164,12 +172,26 @@ class DashboardPage(ctk.CTkFrame):
         return card
 
     def _handle_view(self, file_info):
-        """View the file without explicitly marking it for print."""
         self._download_and_open_file(file_info, "Opening file preview...")
 
     def _handle_print(self, file_info):
-        """Open the file for printing."""
         self._download_and_open_file(file_info, f"Sending '{file_info.get('sender_name')}''s job to printer...")
+
+    def _handle_mark_printed(self, file_info):
+        """Signal target backend that file was printed."""
+        file_name = file_info["file_name"]
+        file_key = file_info["key"]
+
+        def task():
+            result = APIClient.mark_as_printed(file_name)
+            if result.get("success"):
+                self.printed_keys.add(file_key)
+                self.after(0, self._refresh_queue)
+                self.after(0, lambda: show_modern_message("Success", "Job marked as printed. Moving to history.", icon="info"))
+            else:
+                self.after(0, lambda: show_modern_message("Sync Error", "Could not reach backend to mark as printed.", icon="error"))
+        
+        threading.Thread(target=task, daemon=True).start()
 
     def _download_and_open_file(self, file_info, message):
         show_modern_message("Cloud Sync", message)

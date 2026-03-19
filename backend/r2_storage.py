@@ -52,22 +52,40 @@ def list_vendor_files(vendor_id):
                 if not file_name or file_name.endswith("/"):
                     continue
 
-                # Fetch metadata for 'pages', 'sender-name' and 'sender-upi'
+                # Fetch metadata from companion .json file if it exists
+                # Format expected: <filename>.json in the same folder
+                json_key = f"{key}.json"
                 page_count = "N/A"
                 sender_name = "Guest User"
                 sender_upi = "N/A"
+                
                 try:
-                    head = client.head_object(Bucket=R2_BUCKET_NAME, Key=key)
-                    meta = head.get('Metadata', {})
-                    page_count = meta.get('pages', 'N/A')
-                    sender_name = meta.get('sender-name', 'Guest User')
-                    sender_upi = meta.get('sender-upi', 'N/A')
+                    # Check if JSON companion exists and read it
+                    json_obj = client.get_object(Bucket=R2_BUCKET_NAME, Key=json_key)
+                    import json
+                    meta_data = json.loads(json_obj['Body'].read().decode('utf-8'))
+                    
+                    page_count = meta_data.get('page_count', 'N/A')
+                    sender_name = meta_data.get('sender_name', 'Guest User')
+                    sender_upi = meta_data.get('sender_upi', 'N/A')
                 except:
-                    pass
+                    # Fallback to headers metadata if JSON fetch fails
+                    try:
+                        head = client.head_object(Bucket=R2_BUCKET_NAME, Key=key)
+                        meta = head.get('Metadata', {})
+                        page_count = meta.get('pages', page_count)
+                        sender_name = meta.get('sender-name', sender_name)
+                        sender_upi = meta.get('sender-upi', sender_upi)
+                    except:
+                        pass
 
                 parts = file_name.split("/")
                 display_name = parts[-1]
                 subfolder = "/".join(parts[:-1]) if len(parts) > 1 else None
+
+                # Don't show JSON files in the list
+                if display_name.endswith(".json"):
+                    continue
 
                 files.append({
                     "key": key,
