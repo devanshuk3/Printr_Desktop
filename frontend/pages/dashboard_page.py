@@ -21,7 +21,8 @@ class DashboardPage(ctk.CTkFrame):
         # 1. Stats Grid (Top)
         self.stats_container = ctk.CTkFrame(self, fg_color="transparent")
         self.stats_container.pack(fill="x", pady=(0, 40))
-        self._load_stats()
+        # Start stats loading in background to avoid blocking UI
+        threading.Thread(target=self._load_stats, daemon=True).start()
 
         # 2. Cloud Print Queue Header
         queue_header = ctk.CTkFrame(self, fg_color="transparent")
@@ -45,37 +46,39 @@ class DashboardPage(ctk.CTkFrame):
             self._start_fetching_queue()
 
     def _load_stats(self):
-        """Fetch and display summary stats."""
-        for widget in self.stats_container.winfo_children():
-            widget.destroy()
+        """Fetch and display summary stats in background."""
+        if not self.vendor_id:
+            return
 
-        if self.vendor_id:
-            stats_data = APIClient.get_dashboard_stats(self.vendor_id)
-            stats = stats_data.get("stats", {}) if stats_data.get("success") else {}
-        else:
-            stats = {}
+        def update_ui(stats):
+            for widget in self.stats_container.winfo_children():
+                widget.destroy()
 
-        self.stats_container.grid_columnconfigure((0, 1, 2), weight=1)
+            self.stats_container.grid_columnconfigure((0, 1, 2), weight=1)
 
-        printer_status = stats.get("printer_status", "Online")
-        status_color = Theme.CLR_SUCCESS if printer_status == "Online" else Theme.CLR_DANGER
-        
-        display_stats = [
-            ("Pending Jobs", "...", Theme.CLR_PRIMARY, "From Cloud"),
-            ("Printer Status", printer_status, status_color, "Ready" if printer_status == "Online" else "Disconnected"),
-            ("Cloud Sync", "Active", Theme.CLR_SUCCESS, f"Last: {stats.get('last_synced', 'Just now')}")
-        ]
-        
-        self.stat_labels = []
-        for i, (t, v, color, sub) in enumerate(display_stats):
-            card = self.create_card(self.stats_container)
-            card.grid(row=0, column=i, padx=(0 if i==0 else 15, 15 if i==2 else 0), sticky="nsew")
+            printer_status = stats.get("printer_status", "Online")
+            status_color = Theme.CLR_SUCCESS if printer_status == "Online" else Theme.CLR_DANGER
             
-            ctk.CTkLabel(card, text=t, font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_SEC).pack(pady=(25, 5), padx=25, anchor="w")
-            val_label = ctk.CTkLabel(card, text=v, font=Theme.FONTS["h1"], text_color=color)
-            val_label.pack(padx=25, anchor="w")
-            self.stat_labels.append(val_label)
-            ctk.CTkLabel(card, text=sub, font=Theme.FONTS["small"], text_color=Theme.CLR_TEXT_SEC).pack(pady=(5, 25), padx=25, anchor="w")
+            display_stats = [
+                ("Pending Jobs", str(len(self.files)) if self.files else "...", Theme.CLR_PRIMARY, "From Cloud"),
+                ("Printer Status", printer_status, status_color, "Ready" if printer_status == "Online" else "Disconnected"),
+                ("Cloud Sync", "Active", Theme.CLR_SUCCESS, f"Last: {stats.get('last_synced', 'Just now')}")
+            ]
+            
+            self.stat_labels = []
+            for i, (t, v, color, sub) in enumerate(display_stats):
+                card = self.create_card(self.stats_container)
+                card.grid(row=0, column=i, padx=(0 if i==0 else 15, 15 if i==2 else 0), sticky="nsew")
+                
+                ctk.CTkLabel(card, text=t, font=Theme.FONTS["body_bold"], text_color=Theme.CLR_TEXT_SEC).pack(pady=(25, 5), padx=25, anchor="w")
+                val_label = ctk.CTkLabel(card, text=v, font=Theme.FONTS["h1"], text_color=color)
+                val_label.pack(padx=25, anchor="w")
+                self.stat_labels.append(val_label)
+                ctk.CTkLabel(card, text=sub, font=Theme.FONTS["small"], text_color=Theme.CLR_TEXT_SEC).pack(pady=(5, 25), padx=25, anchor="w")
+
+        stats_data = APIClient.get_dashboard_stats(self.vendor_id)
+        stats = stats_data.get("stats", {}) if stats_data.get("success") else {}
+        self.after(0, update_ui, stats)
 
     def _start_fetching_queue(self):
         """Fetch files from R2 in background."""
@@ -237,6 +240,7 @@ class DashboardPage(ctk.CTkFrame):
 
     def _refresh_queue(self):
         self.file_count_label.configure(text="Syncing...")
+        threading.Thread(target=self._load_stats, daemon=True).start()
         self._start_fetching_queue()
 
     def create_card(self, parent, **kwargs):
