@@ -3,6 +3,7 @@ package com.printr.controller;
 import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.ResponseHeaderOverrides;
 import com.printr.entity.Order;
 import com.printr.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -52,10 +53,20 @@ public class CloudStorageController {
             expTimeMillis += 1000 * 60 * 60;
             expiration.setTime(expTimeMillis);
 
+            // Determine Content Type
+            String contentType = "application/octet-stream";
+            if (fileKey.toLowerCase().endsWith(".pdf")) contentType = "application/pdf";
+            else if (fileKey.toLowerCase().endsWith(".jpg") || fileKey.toLowerCase().endsWith(".jpeg")) contentType = "image/jpeg";
+            else if (fileKey.toLowerCase().endsWith(".png")) contentType = "image/png";
+
+            ResponseHeaderOverrides overrides = new ResponseHeaderOverrides();
+            overrides.setContentType(contentType);
+
             GeneratePresignedUrlRequest generatePresignedUrlRequest = 
                 new GeneratePresignedUrlRequest(bucketName, fileKey)
                 .withMethod(HttpMethod.GET)
-                .withExpiration(expiration);
+                .withExpiration(expiration)
+                .withResponseHeaders(overrides);
 
             URL url = s3Client.generatePresignedUrl(generatePresignedUrlRequest);
             log.info("Generated URL: {}", url.toString());

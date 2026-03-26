@@ -75,6 +75,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         const os = (window as any).require('os');
 
         const fileResp = await fetch(data.downloadUrl);
+        if (!fileResp.ok) {
+          const errorMsg = await fileResp.text();
+          console.error('Cloudflare error:', errorMsg);
+          throw new Error('Cloudflare R2 Access Denied. Please check your CORS/Bucket settings.');
+        }
+
         const arrayBuffer = await fileResp.arrayBuffer();
         const buffer = new Uint8Array(arrayBuffer);
 
