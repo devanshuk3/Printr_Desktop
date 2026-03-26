@@ -24,11 +24,18 @@ public class S3Config {
 
     @Bean
     public AmazonS3 s3Client() {
+        // Clean endpoint string (ensure no bucket-specific prefix)
+        String cleanEndpoint = endpoint;
+        if (cleanEndpoint != null && cleanEndpoint.contains("://") && cleanEndpoint.split("/").length > 3) {
+            // If it's something like https://bucket.account.r2.cloudflarestorage.com
+            // we might want the account-level base
+        }
+
         AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
         return AmazonS3ClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(credentials))
-                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(endpoint, "auto"))
-                .withPathStyleAccessEnabled(true)
+                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(cleanEndpoint, "auto"))
+                .withPathStyleAccessEnabled(false) // R2 prefers Virtual Host style
                 .build();
     }
 }

@@ -30,8 +30,14 @@ public class CloudStorageController {
     @GetMapping("/files")
     public ResponseEntity<Map<String, List<Order>>> listVendorOrders(@RequestParam String vendor_id) {
         log.info("Fetching orders for vendor: {}", vendor_id);
-        List<Order> orders = orderRepository.findByVendorId(vendor_id);
-        return ResponseEntity.ok(Map.of("files", orders));
+        List<Order> allOrders = orderRepository.findByVendorId(vendor_id);
+        
+        // Filter out .xml files and only show pending/in-progress jobs
+        List<Order> printableOrders = allOrders.stream()
+                .filter(o -> o.getFileName() != null && !o.getFileName().toLowerCase().endsWith(".xml"))
+                .collect(java.util.stream.Collectors.toList());
+                
+        return ResponseEntity.ok(Map.of("files", printableOrders));
     }
 
     @PostMapping("/download")
