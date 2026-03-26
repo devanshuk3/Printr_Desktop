@@ -6,6 +6,7 @@ import {
   X, 
   RefreshCcw 
 } from 'lucide-react';
+import logo from '../assets/Printr_Logo_transparent_White.png';
 
 const Dashboard: React.FC = () => {
   const queueData = [
@@ -16,7 +17,10 @@ const Dashboard: React.FC = () => {
   return (
     <div className="dashboard-wrapper">
       <header className="system-header">
-        <p>Printr | Enterprise Management v2.0</p>
+        <div className="header-brand">
+          <img src={logo} alt="Printr" className="header-logo-tiny" />
+          <p>Printr | Enterprise Management v2.0</p>
+        </div>
       </header>
 
       <main className="dashboard-content">
@@ -137,6 +141,19 @@ const Dashboard: React.FC = () => {
           font-family: 'Inter', sans-serif;
           letter-spacing: 0.5px;
         }
+
+        .header-brand {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .header-logo-tiny {
+          height: 14px;
+          opacity: 0.8;
+        }
+
+        .header-brand p { margin: 0; }
 
         .dashboard-content {
           flex: 1;
