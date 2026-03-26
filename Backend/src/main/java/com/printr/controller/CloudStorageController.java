@@ -32,20 +32,23 @@ public class CloudStorageController {
     public ResponseEntity<Map<String, List<Order>>> listVendorOrders(@RequestParam String vendor_id) {
         log.info("Fetching orders for vendor: {}", vendor_id);
         List<Order> allOrders = orderRepository.findByVendorId(vendor_id);
-        
+
         // Filter out .xml files and only show pending/in-progress jobs
         List<Order> printableOrders = allOrders.stream()
                 .filter(o -> o.getFileName() != null && !o.getFileName().toLowerCase().endsWith(".xml"))
                 .collect(java.util.stream.Collectors.toList());
-                
+
         return ResponseEntity.ok(Map.of("files", printableOrders));
     }
 
     @PostMapping("/download")
     public ResponseEntity<Map<String, String>> generateDownloadUrl(@RequestBody Map<String, String> request) {
         String fileKey = request.get("file_key");
+        if (fileKey == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "file_key is required"));
+        }
         log.info("Generating pre-signed URL for bucket: {}, fileKey: {}", bucketName, fileKey);
-        
+
         try {
             // Setting URL to expire in 1 hour
             Date expiration = new Date();
@@ -55,26 +58,28 @@ public class CloudStorageController {
 
             // Determine Content Type
             String contentType = "application/octet-stream";
-            if (fileKey.toLowerCase().endsWith(".pdf")) contentType = "application/pdf";
-            else if (fileKey.toLowerCase().endsWith(".jpg") || fileKey.toLowerCase().endsWith(".jpeg")) contentType = "image/jpeg";
-            else if (fileKey.toLowerCase().endsWith(".png")) contentType = "image/png";
+            if (fileKey.toLowerCase().endsWith(".pdf"))
+                contentType = "application/pdf";
+            else if (fileKey.toLowerCase().endsWith(".jpg") || fileKey.toLowerCase().endsWith(".jpeg"))
+                contentType = "image/jpeg";
+            else if (fileKey.toLowerCase().endsWith(".png"))
+                contentType = "image/png";
 
             ResponseHeaderOverrides overrides = new ResponseHeaderOverrides();
             overrides.setContentType(contentType);
 
-            GeneratePresignedUrlRequest generatePresignedUrlRequest = 
-                new GeneratePresignedUrlRequest(bucketName, fileKey)
-                .withMethod(HttpMethod.GET)
-                .withExpiration(expiration)
-                .withResponseHeaders(overrides);
+            GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(bucketName,
+                    fileKey)
+                    .withMethod(HttpMethod.GET)
+                    .withExpiration(expiration)
+                    .withResponseHeaders(overrides);
 
             URL url = s3Client.generatePresignedUrl(generatePresignedUrlRequest);
             log.info("Generated URL: {}", url.toString());
-            
+
             return ResponseEntity.ok(Map.of(
-                "downloadUrl", url.toString(), 
-                "status", "success"
-            ));
+                    "downloadUrl", url.toString(),
+                    "status", "success"));
         } catch (Exception e) {
             log.error("Failed to generate pre-signed URL: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
@@ -91,10 +96,10 @@ public class CloudStorageController {
                 order.setStatus("Cancelled");
                 orderRepository.save(order);
             });
-            
+
             // Delete from Cloudflare R2 to save space
             s3Client.deleteObject(bucketName, fileKey);
-            
+
             return ResponseEntity.ok(Map.of("message", "Cancelled successfully", "status", "success"));
         } catch (Exception e) {
             log.error("Cancel failed: {}", e.getMessage(), e);

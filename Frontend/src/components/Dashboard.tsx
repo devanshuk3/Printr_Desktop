@@ -59,53 +59,49 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
   const handleViewOrPrint = async (job: PrintJob, isPrint: boolean) => {
     try {
-      if (isPrint) console.log('Preparing to print:', job.fileName);
-      
       const response = await fetch(`${API_BASE_URL}/api/r2/download`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_key: job.fileKey, vendor_id: vendorId })
+        body: JSON.stringify({ file_key: job.fileKey })
       });
       
       const data = await response.json();
-      if (data.downloadUrl) {
-        const { shell } = (window as any).require('electron');
-        const fs = (window as any).require('fs');
-        const path = (window as any).require('path');
-        const os = (window as any).require('os');
-
-        const fileResp = await fetch(data.downloadUrl);
-        if (!fileResp.ok) {
-          const errorMsg = await fileResp.text();
-          console.error('Cloudflare error:', errorMsg);
-          throw new Error('Cloudflare R2 Access Denied. Please check your CORS/Bucket settings.');
-        }
-
-        const arrayBuffer = await fileResp.arrayBuffer();
-        const buffer = new Uint8Array(arrayBuffer);
-
-        const tempPath = path.join(os.tmpdir(), `printr_${job.fileName}`);
-        fs.writeFileSync(tempPath, buffer);
-        shell.openPath(tempPath);
-
-        // If it was a print action, also mark as printed in DB automatically
-        if (isPrint) {
-          fetch(`${API_BASE_URL}/api/r2/printed`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ file_key: job.fileKey })
-          }).then(res => {
-            if (res.ok) {
-              setQueueData(prev => prev.map(item => 
-                item.id === job.id ? { ...item, status: 'Printed' } : item
-              ));
-            }
-          }).catch(err => console.error('Auto-mark printed failed:', err));
-        }
+      if (!response.ok || !data.downloadUrl) {
+        throw new Error(data.message || 'Failed to get secure link from backend.');
       }
-    } catch (error) {
-      console.error('Action failed:', error);
-      alert('Failed to process file with local system.');
+
+      // Download the actual file from Cloudflare
+      const fileResp = await fetch(data.downloadUrl);
+      if (!fileResp.ok) {
+        throw new Error('Cloudflare R2 Access Denied. Your secure link was rejected by the storage server.');
+      }
+
+      const arrayBuffer = await fileResp.arrayBuffer();
+      const buffer = new Uint8Array(arrayBuffer);
+
+      const path = (window as any).require('path');
+      const fs = (window as any).require('fs');
+      const os = (window as any).require('os');
+      const { shell } = (window as any).require('electron');
+
+      const tempPath = path.join(os.tmpdir(), `printr_${job.fileName}`);
+      fs.writeFileSync(tempPath, buffer);
+      shell.openPath(tempPath);
+
+      // If it was a print action, also mark as printed in DB
+      if (isPrint) {
+        await fetch(`${API_BASE_URL}/api/r2/printed`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ file_key: job.fileKey })
+        });
+        setQueueData(prev => prev.map(item => 
+          item.id === job.id ? { ...item, status: 'Printed' } : item
+        ));
+      }
+    } catch (error: any) {
+      console.error('Operation failed:', error);
+      alert(`Error: ${error.message}`);
     }
   };
 
@@ -116,14 +112,19 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       const response = await fetch(`${API_BASE_URL}/api/r2/delete`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_key: job.fileKey, vendor_id: vendorId })
+        body: JSON.stringify({ file_key: job.fileKey })
       });
       
       if (response.ok) {
         setQueueData(prev => prev.filter(item => item.id !== job.id));
+        alert('Order successfully cancelled and removed.');
+      } else {
+        const data = await response.json();
+        alert(`Cancel Error: ${data.message || 'Failed to cancel'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Delete failed:', error);
+      alert(`Network Error: ${error.message}`);
     }
   };
 
