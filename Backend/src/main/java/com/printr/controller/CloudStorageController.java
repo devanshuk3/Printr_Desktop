@@ -2,8 +2,6 @@ package com.printr.controller;
 
 import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.amazonaws.services.s3.model.ResponseHeaderOverrides;
 import com.printr.entity.Order;
 import com.printr.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -49,14 +47,16 @@ public class CloudStorageController {
         Long id = idObj != null ? Long.valueOf(idObj.toString()) : null;
 
         String fileKey = fileKeyFromReq;
+        String vendorId = null;
 
-        // Try to find by ID to get the definitive current info
+        // Find the record to get the definitively current info and vendorId
         if (id != null) {
             Optional<Order> order = orderRepository.findById(id);
             if (order.isPresent()) {
+                vendorId = order.get().getVendorId();
                 fileKey = order.get().getFileKey();
                 if (fileKey == null) {
-                    fileKey = order.get().getFileName(); // Fallback to name if key is missing
+                    fileKey = order.get().getFileName();
                 }
             }
         }
@@ -64,41 +64,24 @@ public class CloudStorageController {
         if (fileKey == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "file_key is required"));
         }
-        log.info("Generating pre-signed URL for bucket: {}, fileKey: {}", bucketName, fileKey);
+
+        // Prepend vendor_id folder if missing
+        String fullKey = fileKey;
+        if (vendorId != null && !fileKey.startsWith(vendorId + "/")) {
+            fullKey = vendorId + "/" + fileKey;
+        }
+        
+        log.info("Generating secure link for full path: {}", fullKey);
 
         try {
-            // Setting URL to expire in 1 hour
-            Date expiration = new Date();
-            long expTimeMillis = expiration.getTime();
-            expTimeMillis += 1000 * 60 * 60;
-            expiration.setTime(expTimeMillis);
-
-            // Determine Content Type
-            String contentType = "application/octet-stream";
-            if (fileKey.toLowerCase().endsWith(".pdf"))
-                contentType = "application/pdf";
-            else if (fileKey.toLowerCase().endsWith(".jpg") || fileKey.toLowerCase().endsWith(".jpeg"))
-                contentType = "image/jpeg";
-            else if (fileKey.toLowerCase().endsWith(".png"))
-                contentType = "image/png";
-
-            ResponseHeaderOverrides overrides = new ResponseHeaderOverrides();
-            overrides.setContentType(contentType);
-
-            GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(bucketName,
-                    fileKey)
-                    .withMethod(HttpMethod.GET)
-                    .withExpiration(expiration)
-                    .withResponseHeaders(overrides);
-
-            URL url = s3Client.generatePresignedUrl(generatePresignedUrlRequest);
-            log.info("Generated URL: {}", url.toString());
-
+            Date expiration = new Date(System.currentTimeMillis() + 3600000); // 1 hour
+            URL url = s3Client.generatePresignedUrl(bucketName, fullKey, expiration, HttpMethod.GET);
+            
             return ResponseEntity.ok(Map.of(
                     "downloadUrl", url.toString(),
                     "status", "success"));
         } catch (Exception e) {
-            log.error("Failed to generate pre-signed URL: {}", e.getMessage(), e);
+            log.error("Failed to generate pre-signed URL for {}: {}", fullKey, e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
         }
     }
@@ -111,12 +94,15 @@ public class CloudStorageController {
 
         log.info("Cancelling order. ID: {}, Key: {}", id, fileKey);
         try {
+            String vendorId = null;
             // Update Status in DB
             if (id != null) {
-                orderRepository.findById(id).ifPresent(order -> {
-                    order.setStatus("Cancelled");
-                    orderRepository.save(order);
-                });
+                Optional<Order> order = orderRepository.findById(id);
+                if (order.isPresent()) {
+                    vendorId = order.get().getVendorId();
+                    order.get().setStatus("Cancelled");
+                    orderRepository.save(order.get());
+                }
             } else if (fileKey != null) {
                 orderRepository.findByFileKey(fileKey).ifPresent(order -> {
                     order.setStatus("Cancelled");
@@ -125,8 +111,9 @@ public class CloudStorageController {
             }
 
             // Preserve from deletion as requested, only update SQL status
-            if (fileKey != null) {
-                log.info("Skipping S3 deletion for cancelled order: {}, maintaining storage record.", fileKey);
+            if (fileKey != null && vendorId != null) {
+                String fullKey = fileKey.startsWith(vendorId + "/") ? fileKey : vendorId + "/" + fileKey;
+                log.info("Skipping S3 deletion for cancelled order: {}, maintaining storage record.", fullKey);
             }
 
             return ResponseEntity.ok(Map.of("message", "Status updated to Cancelled", "status", "success"));
