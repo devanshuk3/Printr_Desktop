@@ -269,8 +269,11 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         }
 
         .header-logo-tiny {
-          height: 14px;
-          opacity: 0.8;
+          height: 18px;
+          background: #000;
+          padding: 4px;
+          border-radius: 4px;
+          opacity: 1;
         }
 
         .header-brand p { margin: 0; }

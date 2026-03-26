@@ -80,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) 
         .sidebar-logo-img {
           width: 32px;
           height: 32px;
-          background: #333;
+          background: #000;
           padding: 6px;
           border-radius: 8px;
         }

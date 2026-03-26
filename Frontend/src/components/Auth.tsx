@@ -116,11 +116,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           font-family: 'Inter', sans-serif;
         }
 
-        .auth-centered-box { width: 100%; max-width: 460px; padding: 20px; }
+        .auth-centered-box { width: 100%; max-width: 520px; padding: 20px; }
 
         .white-shadow-card {
           background: #FFFFFF;
-          padding: 64px 48px;
+          padding: 64px 56px;
           border-radius: 32px;
           box-shadow: 0 15px 45px rgba(0,0,0,0.06);
           border: 1px solid rgba(0,0,0,0.05);
@@ -128,11 +128,32 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           animation: authScaleIn 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
         }
 
-        @keyframes authScaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .auth-icon-wrap { 
+          width: 90px; 
+          height: 90px; 
+          background: #000; 
+          border-radius: 24px; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          margin: 0 auto 28px; 
+          box-shadow: 0 10px 20px rgba(0,0,0,0.1); 
+        }
+        .auth-logo-symbol { width: 60px; }
 
-        .auth-brand { margin-bottom: 40px; }
-        .auth-icon-wrap { width: 80px; height: 80px; background: #000; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-        .auth-logo-symbol { width: 50px; }
+        @media (min-width: 1200px) {
+          .auth-centered-box { max-width: 900px; }
+          .auth-inner-card { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 60px;
+            align-items: center;
+            text-align: left;
+            padding: 80px;
+          }
+          .auth-brand { margin-bottom: 0; text-align: center; }
+          .auth-icon-wrap { margin-bottom: 24px; }
+        }
 
         .auth-title { font-size: 30px; font-weight: 800; color: #111; margin: 0; font-family: 'Outfit'; }
         .auth-subtitle { color: #888; font-size: 15px; margin-top: 6px; font-weight: 500; }
