@@ -49,8 +49,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <div className="auth-icon-wrap">
                <img src={logo} alt="Printr" className="auth-logo-symbol" />
             </div>
-            <h1 className="auth-title">Printr Admin</h1>
-            <p className="auth-subtitle">Enterprise Management v2.0</p>
+            <h1 className="auth-title">Printr Login</h1>
+            <p className="auth-subtitle">Enterprise Management </p>
           </div>
 
           <form className="auth-v2-form" onSubmit={handleLogin}>

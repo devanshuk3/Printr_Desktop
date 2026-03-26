@@ -27,7 +27,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) 
       <div className="sidebar-header">
         <div className="logo-container">
           <img src={logo} alt="Printr" className="sidebar-logo-img" />
-          <h2 className="admin-title">Printr Admin</h2>
+          <h2 className="admin-title">Printr Workspace</h2>
         </div>
       </div>
 

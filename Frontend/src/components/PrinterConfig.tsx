@@ -79,12 +79,12 @@ const PrinterConfig: React.FC = () => {
 
             <div className="form-item-row horizontal-input-group">
                <label className="form-label-bold">UPI ID (for payments)</label>
-               <input type="text" placeholder="e.g. devanshu@upi" className="standard-styled-input" />
+               <input type="text" placeholder="e.g. example@upi" className="standard-styled-input" />
             </div>
 
             <div className="form-item-row horizontal-input-group">
               <label className="form-label-bold">Merchant Name</label>
-              <input type="text" placeholder="e.g. Printr Services" className="standard-styled-input" />
+              <input type="text" placeholder="e.g. XYZ PRINT" className="standard-styled-input" />
             </div>
 
             <div className="form-item-row">

@@ -12,10 +12,11 @@ import logo from '../assets/Printr_Logo_transparent_White.png';
 import { API_BASE_URL, getHeaders } from '../config';
 
 interface PrintJob {
-  key: string;
-  file_name: string;
+  id: number;
+  fileKey: string;
+  fileName: string;
   sender_name: string;
-  page_count: number;
+  pageCount: number;
   status: string;
 }
 
@@ -58,12 +59,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
   const handleViewOrPrint = async (job: PrintJob, isPrint: boolean) => {
     try {
-      if (isPrint) console.log('Preparing to print:', job.file_name);
+      if (isPrint) console.log('Preparing to print:', job.fileName);
       
       const response = await fetch(`${API_BASE_URL}/api/r2/download`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_key: job.key, vendor_id: vendorId })
+        body: JSON.stringify({ file_key: job.fileKey, vendor_id: vendorId })
       });
       
       const data = await response.json();
@@ -77,7 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         const arrayBuffer = await fileResp.arrayBuffer();
         const buffer = new Uint8Array(arrayBuffer);
 
-        const tempPath = path.join(os.tmpdir(), `printr_${job.file_name}`);
+        const tempPath = path.join(os.tmpdir(), `printr_${job.fileName}`);
         fs.writeFileSync(tempPath, buffer);
         shell.openPath(tempPath);
       }
@@ -88,17 +89,17 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   };
 
   const handleMarkPrinted = async (job: PrintJob) => {
-    if (!confirm(`Mark "${job.file_name}" as printed?`)) return;
+    if (!confirm(`Mark "${job.fileName}" as printed?`)) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/r2/printed`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_name: job.file_name })
+        body: JSON.stringify({ file_name: job.fileName })
       });
       
       if (response.ok) {
-        setQueueData(prev => prev.filter(item => item.key !== job.key));
+        setQueueData(prev => prev.filter(item => item.id !== job.id));
       }
     } catch (error) {
       console.error('Update failed:', error);
@@ -106,17 +107,17 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   };
 
   const handleCancel = async (job: PrintJob) => {
-    if (!confirm(`Cancel and delete order for "${job.file_name}" from ${job.sender_name}?`)) return;
+    if (!confirm(`Cancel and delete order for "${job.fileName}" from ${job.sender_name}?`)) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/r2/delete`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_key: job.key, vendor_id: vendorId })
+        body: JSON.stringify({ file_key: job.fileKey, vendor_id: vendorId })
       });
       
       if (response.ok) {
-        setQueueData(prev => prev.filter(item => item.key !== job.key));
+        setQueueData(prev => prev.filter(item => item.id !== job.id));
       }
     } catch (error) {
       console.error('Delete failed:', error);
@@ -138,8 +139,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
             <h1>System Dashboard</h1>
             <p>Welcome back! Here's what's happening with your print queue today.</p>
           </div>
-          <button className={`refresh-btn-premium ${refreshing ? 'spinning' : ''}`} onClick={handleRefresh}>
-            <RefreshCcw size={18} />
+          <button 
+            className="refresh-btn-premium" 
+            onClick={handleRefresh}
+            style={refreshing ? { pointerEvents: 'none', opacity: 0.7 } : {}}
+          >
+            <RefreshCcw size={18} className={refreshing ? 'spinning' : ''} />
             <span>{refreshing ? 'Refreshing...' : 'Refresh List'}</span>
           </button>
         </div>
@@ -222,21 +227,21 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                   </thead>
                   <tbody>
                     {queueData.map((row) => (
-                      <tr key={row.key} className="queue-row">
+                      <tr key={row.id} className="queue-row">
                         <td className="file-cell">
                           <div className="file-name-info">
-                            <span className="file-primary">{row.file_name}</span>
-                            <span className="file-key">{row.key.substring(0, 8)}...</span>
+                            <span className="file-primary">{row.fileName}</span>
+                            <span className="file-key">{row.fileKey?.substring(0, 8)}...</span>
                           </div>
                         </td>
                         <td className="sender-cell">
                           <span className="sender-name">{row.sender_name}</span>
                         </td>
                         <td className="pages-cell">
-                          <span className="page-count-badge">{row.page_count}</span>
+                          <span className="page-count-badge">{row.pageCount}</span>
                         </td>
                         <td className="cost-cell">
-                          <span className="cost-value">₹{(row.page_count * 5).toFixed(2)}</span>
+                          <span className="cost-value">₹{(row.pageCount * 5).toFixed(2)}</span>
                         </td>
                         <td>
                           <span className={`status-pill ${row.status || 'pending'}`}>
