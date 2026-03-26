@@ -12,12 +12,15 @@ public class PingService {
     private static final Logger logger = LoggerFactory.getLogger(PingService.class);
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${PRODUCTION_URL}")
+    @Value("${PRODUCTION_URL:}")
     private String productionUrl;
 
     // Ping every 5 minutes (300,000 ms)
     @Scheduled(fixedRate = 300000)
     public void pingServer() {
+        if (productionUrl == null || productionUrl.isBlank()) {
+            return;
+        }
         try {
             logger.info("Pinging Production Server to prevent sleeping: {}", productionUrl);
             restTemplate.getForObject(productionUrl + "/api/health", String.class);
