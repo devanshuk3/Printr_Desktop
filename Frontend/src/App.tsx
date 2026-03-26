@@ -7,22 +7,28 @@ import Auth from './components/Auth';
 import './App.css';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [vendorId, setVendorId] = useState<string | null>(localStorage.getItem('printr_vendor_id'));
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  const handleLogin = (id: string) => {
+    setVendorId(id);
+  };
+
   const handleLogout = () => {
-    setIsAuthenticated(false);
+    localStorage.removeItem('printr_token');
+    localStorage.removeItem('printr_vendor_id');
+    setVendorId(null);
     setActiveTab('dashboard');
   };
 
-  if (!isAuthenticated) {
-    return <Auth onLogin={() => setIsAuthenticated(true)} />;
+  if (!vendorId) {
+    return <Auth onLogin={handleLogin} />;
   }
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard vendorId={vendorId} />;
       case 'cod':
         return <CODVerification />;
       case 'config':
@@ -30,7 +36,7 @@ function App() {
       case 'settings':
         return <PrinterConfig />;
       default:
-        return <Dashboard />;
+        return <Dashboard vendorId={vendorId} />;
     }
   };
 

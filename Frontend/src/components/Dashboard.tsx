@@ -1,18 +1,127 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Printer, 
   Eye, 
   Check, 
   X, 
-  RefreshCcw 
+  RefreshCcw,
+  Loader2
 } from 'lucide-react';
 import logo from '../assets/Printr_Logo_transparent_White.png';
 
-const Dashboard: React.FC = () => {
-  const queueData = [
-    { id: 'devanshuk328.pdf', customer: 'Devanshu Kumar', pages: 1, total: '₹5.0', status: 'pending' },
-    { id: 'devanshuk327.pdf', customer: 'Devanshu Kumar', pages: 1, total: '₹2.0', status: 'pending' },
-  ];
+import { API_BASE_URL, getHeaders } from '../config';
+
+interface PrintJob {
+  key: string;
+  file_name: string;
+  sender_name: string;
+  page_count: number;
+  status: string;
+}
+
+interface DashboardProps {
+  vendorId: string;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
+  const [queueData, setQueueData] = useState<PrintJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchQueue = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/r2/files?vendor_id=${vendorId}`, {
+        headers: getHeaders()
+      });
+      const data = await response.json();
+      if (data.files) {
+        setQueueData(data.files);
+      }
+    } catch (error) {
+      console.error('Error fetching queue:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 30000);
+    return () => clearInterval(interval);
+  }, [vendorId]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchQueue();
+  };
+
+  const handleViewOrPrint = async (job: PrintJob, isPrint: boolean) => {
+    try {
+      if (isPrint) console.log('Preparing to print:', job.file_name);
+      
+      const response = await fetch(`${API_BASE_URL}/api/r2/download`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ file_key: job.key, vendor_id: vendorId })
+      });
+      
+      const data = await response.json();
+      if (data.downloadUrl) {
+        const { shell } = (window as any).require('electron');
+        const fs = (window as any).require('fs');
+        const path = (window as any).require('path');
+        const os = (window as any).require('os');
+
+        const fileResp = await fetch(data.downloadUrl);
+        const arrayBuffer = await fileResp.arrayBuffer();
+        const buffer = new Uint8Array(arrayBuffer);
+
+        const tempPath = path.join(os.tmpdir(), `printr_${job.file_name}`);
+        fs.writeFileSync(tempPath, buffer);
+        shell.openPath(tempPath);
+      }
+    } catch (error) {
+      console.error('Action failed:', error);
+      alert('Failed to process file with local system.');
+    }
+  };
+
+  const handleMarkPrinted = async (job: PrintJob) => {
+    if (!confirm(`Mark "${job.file_name}" as printed?`)) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/r2/printed`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ file_name: job.file_name })
+      });
+      
+      if (response.ok) {
+        setQueueData(prev => prev.filter(item => item.key !== job.key));
+      }
+    } catch (error) {
+      console.error('Update failed:', error);
+    }
+  };
+
+  const handleCancel = async (job: PrintJob) => {
+    if (!confirm(`Cancel and delete order for "${job.file_name}" from ${job.sender_name}?`)) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/r2/delete`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ file_key: job.key, vendor_id: vendorId })
+      });
+      
+      if (response.ok) {
+        setQueueData(prev => prev.filter(item => item.key !== job.key));
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+    }
+  };
 
   return (
     <div className="dashboard-wrapper">
@@ -31,9 +140,9 @@ const Dashboard: React.FC = () => {
         <section className="print-queue-section">
           <div className="section-header">
             <h2>Print Queue</h2>
-            <button className="refresh-btn">
+            <button className={`refresh-btn ${refreshing ? 'spinning' : ''}`} onClick={handleRefresh}>
               <RefreshCcw size={14} />
-              <span>Refresh List</span>
+              <span>{refreshing ? 'Refreshing...' : 'Refresh List'}</span>
             </button>
           </div>
 
@@ -44,7 +153,7 @@ const Dashboard: React.FC = () => {
                  <span>PENDING JOBS</span>
               </div>
               <div className="stat-main">
-                <span className="stat-value">2</span>
+                <span className="stat-value">{queueData.length}</span>
                 <span className="stat-sub">Jobs ready to print</span>
               </div>
             </div>
@@ -73,50 +182,61 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="table-container white-panel">
-            <table className="queue-table">
-              <thead>
-                <tr>
-                  <th>File Name</th>
-                  <th>Customer</th>
-                  <th>Pages</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {queueData.map((row, i) => (
-                  <tr key={i} className="row-hover">
-                    <td className="bold">{row.id}</td>
-                    <td>{row.customer}</td>
-                    <td>{row.pages}</td>
-                    <td>{row.total}</td>
-                    <td>
-                      <span className="badge pending">
-                        pending
-                      </span>
-                    </td>
-                    <td className="actions-cell">
-                      <button className="action-btn print-btn">
-                        <Printer size={14} />
-                        <span>Print</span>
-                      </button>
-                      <button className="action-btn view-btn">
-                        <Eye size={14} />
-                        <span>View</span>
-                      </button>
-                      <button className="action-btn done-btn">
-                        <Check size={14} />
-                        <span>Done</span>
-                      </button>
-                      <button className="action-btn cancel-btn">
-                        <X size={14} />
-                      </button>
-                    </td>
+            {loading ? (
+              <div className="loader-box">
+                <Loader2 className="spinning" />
+                <p>Fetching orders...</p>
+              </div>
+            ) : queueData.length === 0 ? (
+              <div className="empty-box">
+                <p>No pending jobs found.</p>
+              </div>
+            ) : (
+              <table className="queue-table">
+                <thead>
+                  <tr>
+                    <th>File Name</th>
+                    <th>Sender</th>
+                    <th>Pages</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {queueData.map((row) => (
+                    <tr key={row.key} className="row-hover">
+                      <td className="bold">{row.file_name}</td>
+                      <td>{row.sender_name}</td>
+                      <td>{row.page_count}</td>
+                      <td>₹{row.page_count * 5}</td>
+                      <td>
+                        <span className="badge pending">
+                          {row.status || 'pending'}
+                        </span>
+                      </td>
+                      <td className="actions-cell">
+                        <button className="action-btn print-btn" onClick={() => handleViewOrPrint(row, true)}>
+                          <Printer size={14} />
+                          <span>Print</span>
+                        </button>
+                        <button className="action-btn view-btn" onClick={() => handleViewOrPrint(row, false)}>
+                          <Eye size={14} />
+                          <span>View</span>
+                        </button>
+                        <button className="action-btn done-btn" onClick={() => handleMarkPrinted(row)}>
+                          <Check size={14} />
+                          <span>Done</span>
+                        </button>
+                        <button className="action-btn cancel-btn" onClick={() => handleCancel(row)}>
+                          <X size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
       </main>
@@ -316,6 +436,29 @@ const Dashboard: React.FC = () => {
 
         .cancel-btn { background: white; color: #D32F2F; border: 1px solid #D32F2F; min-width: 34px; justify-content: center; }
         .cancel-btn:hover { background: #fff5f5; }
+        .loader-box, .empty-box {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 300px;
+          color: #888;
+          gap: 16px;
+        }
+
+        .spinning {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        .refresh-btn.spinning {
+          pointer-events: none;
+          opacity: 0.7;
+        }
       `}</style>
     </div>
   );

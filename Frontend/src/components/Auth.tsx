@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { User, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import logo from '../assets/Printr_Logo_transparent_White.png';
+import { API_BASE_URL } from '../config';
 
 interface AuthProps {
-  onLogin: () => void;
+  onLogin: (vendorId: string) => void;
 }
 
 const Auth: React.FC<AuthProps> = ({ onLogin }) => {
@@ -11,13 +12,32 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (identifier && password) {
-      onLogin();
-    } else {
-      setError('Invalid credentials. Check your input.');
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendor_id: identifier, password: password })
+      });
+
+      const data = await response.json();
+      if (data.success && data.token) {
+        localStorage.setItem('printr_token', data.token);
+        localStorage.setItem('printr_vendor_id', identifier);
+        onLogin(identifier);
+      } else {
+        setError(data.message || 'Authentication failed. Please check your credentials.');
+      }
+    } catch (err) {
+      setError('Connection failed. Make sure the backend is responding.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,8 +86,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
             {error && <div className="auth-error-hint">{error}</div>}
 
-            <button type="submit" className="auth-submit-btn">
-              <span>{isLogin ? 'Sign In to Dashboard' : 'Initialize Account'}</span>
+            <button type="submit" className="auth-submit-btn" disabled={loading}>
+              <span>{loading ? 'Logging in...' : isLogin ? 'Sign In to Dashboard' : 'Initialize Account'}</span>
               <ArrowRight size={20} />
             </button>
           </form>
