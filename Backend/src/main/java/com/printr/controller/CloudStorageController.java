@@ -6,6 +6,7 @@ import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.printr.entity.Order;
 import com.printr.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/r2")
 @RequiredArgsConstructor
+@Slf4j
 public class CloudStorageController {
 
     private final OrderRepository orderRepository;
@@ -27,6 +29,7 @@ public class CloudStorageController {
 
     @GetMapping("/files")
     public ResponseEntity<Map<String, List<Order>>> listVendorOrders(@RequestParam String vendor_id) {
+        log.info("Fetching orders for vendor: {}", vendor_id);
         List<Order> orders = orderRepository.findByVendorId(vendor_id);
         return ResponseEntity.ok(Map.of("files", orders));
     }
@@ -34,45 +37,67 @@ public class CloudStorageController {
     @PostMapping("/download")
     public ResponseEntity<Map<String, String>> generateDownloadUrl(@RequestBody Map<String, String> request) {
         String fileKey = request.get("file_key");
+        log.info("Generating pre-signed URL for bucket: {}, fileKey: {}", bucketName, fileKey);
         
-        // Setting URL to expire in 1 hour
-        Date expiration = new Date();
-        long expTimeMillis = expiration.getTime();
-        expTimeMillis += 1000 * 60 * 60;
-        expiration.setTime(expTimeMillis);
+        try {
+            // Setting URL to expire in 1 hour
+            Date expiration = new Date();
+            long expTimeMillis = expiration.getTime();
+            expTimeMillis += 1000 * 60 * 60;
+            expiration.setTime(expTimeMillis);
 
-        GeneratePresignedUrlRequest generatePresignedUrlRequest = 
-            new GeneratePresignedUrlRequest(bucketName, fileKey)
-            .withMethod(HttpMethod.GET)
-            .withExpiration(expiration);
+            GeneratePresignedUrlRequest generatePresignedUrlRequest = 
+                new GeneratePresignedUrlRequest(bucketName, fileKey)
+                .withMethod(HttpMethod.GET)
+                .withExpiration(expiration);
 
-        URL url = s3Client.generatePresignedUrl(generatePresignedUrlRequest);
-        
-        return ResponseEntity.ok(Map.of(
-            "downloadUrl", url.toString(), 
-            "status", "success"
-        ));
+            URL url = s3Client.generatePresignedUrl(generatePresignedUrlRequest);
+            log.info("Generated URL: {}", url.toString());
+            
+            return ResponseEntity.ok(Map.of(
+                "downloadUrl", url.toString(), 
+                "status", "success"
+            ));
+        } catch (Exception e) {
+            log.error("Failed to generate pre-signed URL: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @PostMapping("/delete")
     public ResponseEntity<Map<String, String>> deleteVendorOrder(@RequestBody Map<String, String> request) {
         String fileKey = request.get("file_key");
+        log.info("Cancelling order with fileKey: {}", fileKey);
         try {
-            // 1. Delete from Cloudflare R2
+            // Update Status in DB
+            orderRepository.findByFileKey(fileKey).ifPresent(order -> {
+                order.setStatus("Cancelled");
+                orderRepository.save(order);
+            });
+            
+            // Delete from Cloudflare R2 to save space
             s3Client.deleteObject(bucketName, fileKey);
             
-            // 2. We'll find by fileKey to ensure record is gone in DB
-            // (Assuming fileKey is uniquely identifying an order)
-            // If you have id, we should pass id. 
-            // For now, let's keep it simple if it matches your schema
-            return ResponseEntity.ok(Map.of("message", "Deleted successfully", "status", "success"));
+            return ResponseEntity.ok(Map.of("message", "Cancelled successfully", "status", "success"));
         } catch (Exception e) {
+            log.error("Cancel failed: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
         }
     }
 
     @PostMapping("/printed")
     public ResponseEntity<Map<String, String>> markAsPrinted(@RequestBody Map<String, String> request) {
-        return ResponseEntity.ok(Map.of("message", "Job status updated to Printed", "status", "success"));
+        String fileKey = request.get("file_key");
+        log.info("Marking order as printed: {}", fileKey);
+        try {
+            orderRepository.findByFileKey(fileKey).ifPresent(order -> {
+                order.setStatus("Printed");
+                orderRepository.save(order);
+            });
+            return ResponseEntity.ok(Map.of("message", "Status updated to Printed", "status", "success"));
+        } catch (Exception e) {
+            log.error("Status update failed: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
+        }
     }
 }

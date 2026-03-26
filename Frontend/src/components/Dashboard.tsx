@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Printer, 
   Eye, 
-  Check, 
   X, 
   RefreshCcw,
-  Loader2
+  Loader2,
+  CheckCircle
 } from 'lucide-react';
 import logo from '../assets/Printr_Logo_transparent_White.png';
 
@@ -81,28 +81,25 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         const tempPath = path.join(os.tmpdir(), `printr_${job.fileName}`);
         fs.writeFileSync(tempPath, buffer);
         shell.openPath(tempPath);
+
+        // If it was a print action, also mark as printed in DB automatically
+        if (isPrint) {
+          fetch(`${API_BASE_URL}/api/r2/printed`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ file_key: job.fileKey })
+          }).then(res => {
+            if (res.ok) {
+              setQueueData(prev => prev.map(item => 
+                item.id === job.id ? { ...item, status: 'Printed' } : item
+              ));
+            }
+          }).catch(err => console.error('Auto-mark printed failed:', err));
+        }
       }
     } catch (error) {
       console.error('Action failed:', error);
       alert('Failed to process file with local system.');
-    }
-  };
-
-  const handleMarkPrinted = async (job: PrintJob) => {
-    if (!confirm(`Mark "${job.fileName}" as printed?`)) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/r2/printed`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ file_name: job.fileName })
-      });
-      
-      if (response.ok) {
-        setQueueData(prev => prev.filter(item => item.id !== job.id));
-      }
-    } catch (error) {
-      console.error('Update failed:', error);
     }
   };
 
@@ -167,7 +164,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
             <div className="stat-card-inner">
                <div className="stat-card-header">
                  <div className="stat-icon-box">
-                   <Check size={20} />
+                   <CheckCircle size={20} />
                  </div>
                  <span>SYSTEM STATUS</span>
                </div>
@@ -250,16 +247,13 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                         </td>
                         <td className="actions-cell-premium">
                           <div className="action-button-group">
-                            <button className="icon-action-btn print" title="Print" onClick={() => handleViewOrPrint(row, true)}>
+                            <button className="icon-action-btn print" title="Print & Mark Done" onClick={() => handleViewOrPrint(row, true)}>
                               <Printer size={16} />
                             </button>
-                            <button className="icon-action-btn view" title="View" onClick={() => handleViewOrPrint(row, false)}>
+                            <button className="icon-action-btn view" title="Quick View" onClick={() => handleViewOrPrint(row, false)}>
                               <Eye size={16} />
                             </button>
-                            <button className="icon-action-btn done" title="Mark Done" onClick={() => handleMarkPrinted(row)}>
-                              <Check size={16} />
-                            </button>
-                            <button className="icon-action-btn cancel" title="Cancel" onClick={() => handleCancel(row)}>
+                            <button className="icon-action-btn cancel" title="Cancel Order" onClick={() => handleCancel(row)}>
                               <X size={16} />
                             </button>
                           </div>
