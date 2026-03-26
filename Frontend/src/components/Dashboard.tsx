@@ -97,7 +97,10 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       const response = await fetch(`${API_BASE_URL}/api/r2/download`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_key: key })
+        body: JSON.stringify({ 
+          file_key: key,
+          id: job.id 
+        })
       });
       
       const data = await response.json();
@@ -128,7 +131,10 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         await fetch(`${API_BASE_URL}/api/r2/printed`, {
           method: 'POST',
           headers: getHeaders(),
-          body: JSON.stringify({ file_key: key })
+          body: JSON.stringify({ 
+            file_key: key,
+            id: job.id
+          })
         });
         setQueueData(prev => prev.map(item => 
           item.id === job.id ? { ...item, status: 'Printed' } : item
@@ -155,7 +161,10 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       const response = await fetch(`${API_BASE_URL}/api/r2/delete`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_key: key })
+        body: JSON.stringify({ 
+          file_key: key,
+          id: job.id
+        })
       });
       
       if (response.ok) {

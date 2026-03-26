@@ -15,6 +15,7 @@ import java.net.URL;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/r2")
@@ -42,8 +43,24 @@ public class CloudStorageController {
     }
 
     @PostMapping("/download")
-    public ResponseEntity<Map<String, String>> generateDownloadUrl(@RequestBody Map<String, String> request) {
-        String fileKey = request.get("file_key");
+    public ResponseEntity<Map<String, String>> generateDownloadUrl(@RequestBody Map<String, Object> request) {
+        String fileKeyFromReq = (String) request.get("file_key");
+        Object idObj = request.get("id");
+        Long id = idObj != null ? Long.valueOf(idObj.toString()) : null;
+
+        String fileKey = fileKeyFromReq;
+
+        // Try to find by ID to get the definitive current info
+        if (id != null) {
+            Optional<Order> order = orderRepository.findById(id);
+            if (order.isPresent()) {
+                fileKey = order.get().getFileKey();
+                if (fileKey == null) {
+                    fileKey = order.get().getFileName(); // Fallback to name if key is missing
+                }
+            }
+        }
+
         if (fileKey == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "file_key is required"));
         }
@@ -87,18 +104,34 @@ public class CloudStorageController {
     }
 
     @PostMapping("/delete")
-    public ResponseEntity<Map<String, String>> deleteVendorOrder(@RequestBody Map<String, String> request) {
-        String fileKey = request.get("file_key");
-        log.info("Cancelling order with fileKey: {}", fileKey);
+    public ResponseEntity<Map<String, String>> deleteVendorOrder(@RequestBody Map<String, Object> request) {
+        String fileKey = (String) request.get("file_key");
+        Object idObj = request.get("id");
+        Long id = idObj != null ? Long.valueOf(idObj.toString()) : null;
+
+        log.info("Cancelling order. ID: {}, Key: {}", id, fileKey);
         try {
             // Update Status in DB
-            orderRepository.findByFileKey(fileKey).ifPresent(order -> {
-                order.setStatus("Cancelled");
-                orderRepository.save(order);
-            });
+            if (id != null) {
+                orderRepository.findById(id).ifPresent(order -> {
+                    order.setStatus("Cancelled");
+                    orderRepository.save(order);
+                });
+            } else if (fileKey != null) {
+                orderRepository.findByFileKey(fileKey).ifPresent(order -> {
+                    order.setStatus("Cancelled");
+                    orderRepository.save(order);
+                });
+            }
 
-            // Delete from Cloudflare R2 to save space
-            s3Client.deleteObject(bucketName, fileKey);
+            // Delete from Cloudflare R2
+            if (fileKey != null) {
+                try {
+                    s3Client.deleteObject(bucketName, fileKey);
+                } catch (Exception s3e) {
+                    log.warn("S3 Delete fail (skip): {}", fileKey);
+                }
+            }
 
             return ResponseEntity.ok(Map.of("message", "Cancelled successfully", "status", "success"));
         } catch (Exception e) {
@@ -108,14 +141,24 @@ public class CloudStorageController {
     }
 
     @PostMapping("/printed")
-    public ResponseEntity<Map<String, String>> markAsPrinted(@RequestBody Map<String, String> request) {
-        String fileKey = request.get("file_key");
-        log.info("Marking order as printed: {}", fileKey);
+    public ResponseEntity<Map<String, String>> markAsPrinted(@RequestBody Map<String, Object> request) {
+        String fileKey = (String) request.get("file_key");
+        Object idObj = request.get("id");
+        Long id = idObj != null ? Long.valueOf(idObj.toString()) : null;
+
+        log.info("Marking order as printed. ID: {}, Key: {}", id, fileKey);
         try {
-            orderRepository.findByFileKey(fileKey).ifPresent(order -> {
-                order.setStatus("Printed");
-                orderRepository.save(order);
-            });
+            if (id != null) {
+                orderRepository.findById(id).ifPresent(order -> {
+                    order.setStatus("Printed");
+                    orderRepository.save(order);
+                });
+            } else if (fileKey != null) {
+                orderRepository.findByFileKey(fileKey).ifPresent(order -> {
+                    order.setStatus("Printed");
+                    orderRepository.save(order);
+                });
+            }
             return ResponseEntity.ok(Map.of("message", "Status updated to Printed", "status", "success"));
         } catch (Exception e) {
             log.error("Status update failed: {}", e.getMessage(), e);
