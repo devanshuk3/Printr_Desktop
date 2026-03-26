@@ -8,11 +8,11 @@
 		<version>4.0.4</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.example</groupId>
-	<artifactId>demo</artifactId>
+	<groupId>com.printr</groupId>
+	<artifactId>printr</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>printr</name>
+	<description>Printr Backend Service</description>
 	<url/>
 	<licenses>
 		<license/>
