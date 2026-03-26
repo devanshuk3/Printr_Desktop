@@ -35,7 +35,7 @@ public class S3Config {
         return AmazonS3ClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(credentials))
                 .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(cleanEndpoint, "auto"))
-                .withPathStyleAccessEnabled(false) // R2 prefers Virtual Host style
+                .withPathStyleAccessEnabled(true) // R2 account-level endpoints often require Path Style
                 .build();
     }
 }

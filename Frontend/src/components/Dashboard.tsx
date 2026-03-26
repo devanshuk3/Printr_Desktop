@@ -13,10 +13,10 @@ import { API_BASE_URL, getHeaders } from '../config';
 
 interface PrintJob {
   id: number;
-  fileKey: string;
-  fileName: string;
-  sender_name: string;
-  pageCount: number;
+  file_key?: string;
+  file_name?: string;
+  sender_name?: string;
+  page_count?: number;
   status: string;
 }
 
@@ -28,18 +28,45 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   const [queueData, setQueueData] = useState<PrintJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const fetchQueue = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30s for Render wakes
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/r2/files?vendor_id=${vendorId}`, {
-        headers: getHeaders()
+      const resp = await fetch(`${API_BASE_URL}/api/r2/files?vendor_id=${vendorId}`, {
+        headers: getHeaders(),
+        signal: controller.signal
       });
-      const data = await response.json();
+      
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) {
+        if (resp.status === 403) {
+            console.warn("Authorization failed or CORS block detected.");
+        }
+        throw new Error(`Server responded with ${resp.status}`);
+      }
+
+      const data = await resp.json();
       if (data.files) {
         setQueueData(data.files);
+        setConnectionError(null);
+        if (data.files.length > 0) {
+            console.log('Sample Data Structure (First Entry):');
+            console.dir(data.files[0]);
+        }
       }
-    } catch (error) {
-      console.error('Error fetching queue:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        const msg = 'Connection timed out. The server might be waking up or is unreachable.';
+        console.error(msg);
+        setConnectionError(msg);
+      } else {
+        console.error('Error fetching queue:', error);
+        setConnectionError(`Failed to load queue: ${error.message}`);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -58,11 +85,19 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   };
 
   const handleViewOrPrint = async (job: PrintJob, isPrint: boolean) => {
+    const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
+    const name = job.file_name || (job as any).fileName || 'document';
+
+    if (!key) {
+        alert("Operation aborted: Identifer (file_key) is missing for this record.");
+        return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/r2/download`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_key: job.fileKey })
+        body: JSON.stringify({ file_key: key })
       });
       
       const data = await response.json();
@@ -84,7 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       const os = (window as any).require('os');
       const { shell } = (window as any).require('electron');
 
-      const tempPath = path.join(os.tmpdir(), `printr_${job.fileName}`);
+       const tempPath = path.join(os.tmpdir(), `printr_${name}`);
       fs.writeFileSync(tempPath, buffer);
       shell.openPath(tempPath);
 
@@ -93,7 +128,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         await fetch(`${API_BASE_URL}/api/r2/printed`, {
           method: 'POST',
           headers: getHeaders(),
-          body: JSON.stringify({ file_key: job.fileKey })
+          body: JSON.stringify({ file_key: key })
         });
         setQueueData(prev => prev.map(item => 
           item.id === job.id ? { ...item, status: 'Printed' } : item
@@ -101,18 +136,26 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       }
     } catch (error: any) {
       console.error('Operation failed:', error);
-      alert(`Error: ${error.message}`);
+      alert(`Operation failed for Row ${job.id} (Key: ${key})\nError: ${error.message}`);
     }
   };
 
   const handleCancel = async (job: PrintJob) => {
-    if (!confirm(`Cancel and delete order for "${job.fileName}" from ${job.sender_name}?`)) return;
+    const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
+    const name = job.file_name || (job as any).fileName || 'document';
+
+    if (!confirm(`Cancel and delete order for "${name}" from ${job.sender_name}?`)) return;
+
+    if (!key) {
+        alert("Operation aborted: Missing file key.");
+        return;
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/r2/delete`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ file_key: job.fileKey })
+        body: JSON.stringify({ file_key: key })
       });
       
       if (response.ok) {
@@ -143,7 +186,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
             <h1>System Dashboard</h1>
             <p>Welcome back! Here's what's happening with your print queue today.</p>
           </div>
-          <button 
+           <button 
             className="refresh-btn-premium" 
             onClick={handleRefresh}
             style={refreshing ? { pointerEvents: 'none', opacity: 0.7 } : {}}
@@ -207,6 +250,25 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
               <div className="loader-box-premium">
                 <Loader2 className="spinning" size={40} />
                 <p>Establishing secure connection...</p>
+                <div style={{ fontSize: '12px', color: '#BBB', marginTop: '10px' }}>
+                  Targeting: {API_BASE_URL}
+                </div>
+              </div>
+            ) : connectionError ? (
+              <div className="empty-box-premium error-box">
+                <div className="empty-icon-wrap" style={{ color: '#EF4444' }}>
+                  <X size={48} />
+                </div>
+                <h3>Connection Error</h3>
+                <p>{connectionError}</p>
+                <button 
+                  onClick={fetchQueue} 
+                  className="refresh-btn-premium" 
+                  style={{ margin: '20px auto', background: '#EF4444' }}
+                >
+                  <RefreshCcw size={16} />
+                  <span>Try Again</span>
+                </button>
               </div>
             ) : queueData.length === 0 ? (
               <div className="empty-box-premium">
@@ -234,18 +296,18 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                       <tr key={row.id} className="queue-row">
                         <td className="file-cell">
                           <div className="file-name-info">
-                            <span className="file-primary">{row.fileName}</span>
-                            <span className="file-key">{row.fileKey?.substring(0, 8)}...</span>
+                            <span className="file-primary">{row.file_name || (row as any).fileName || (row as any).file}</span>
+                            <span className="file-key">{(row.file_key || (row as any).fileKey || row.file_name || (row as any).fileName || 'No-Key').substring(0, 10)}...</span>
                           </div>
                         </td>
                         <td className="sender-cell">
-                          <span className="sender-name">{row.sender_name}</span>
+                          <span className="sender-name">{row.sender_name || (row as any).senderName || (row as any).customer}</span>
                         </td>
                         <td className="pages-cell">
-                          <span className="page-count-badge">{row.pageCount}</span>
+                          <span className="page-count-badge">{row.page_count || (row as any).pageCount || (row as any).pages}</span>
                         </td>
                         <td className="cost-cell">
-                          <span className="cost-value">₹{(row.pageCount * 5).toFixed(2)}</span>
+                          <span className="cost-value">₹{((row.page_count || (row as any).pageCount || (row as any).pages || 0) * 5).toFixed(2)}</span>
                         </td>
                         <td>
                           <span className={`status-pill ${row.status || 'pending'}`}>
