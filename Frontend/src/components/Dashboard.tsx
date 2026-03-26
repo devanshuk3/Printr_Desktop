@@ -128,114 +128,142 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       <header className="system-header">
         <div className="header-brand">
           <img src={logo} alt="Printr" className="header-logo-tiny" />
-          <p>Printr | Enterprise Management v2.0</p>
+          <p>Printr | Cloud Print Enterprise v2.0</p>
         </div>
       </header>
 
       <main className="dashboard-content">
-        <div className="system-overview-label">
-          <span>System Overview</span>
+        <div className="content-intro">
+          <div className="title-area">
+            <h1>System Dashboard</h1>
+            <p>Welcome back! Here's what's happening with your print queue today.</p>
+          </div>
+          <button className={`refresh-btn-premium ${refreshing ? 'spinning' : ''}`} onClick={handleRefresh}>
+            <RefreshCcw size={18} />
+            <span>{refreshing ? 'Refreshing...' : 'Refresh List'}</span>
+          </button>
         </div>
 
-        <section className="print-queue-section">
-          <div className="section-header">
-            <h2>Print Queue</h2>
-            <button className={`refresh-btn ${refreshing ? 'spinning' : ''}`} onClick={handleRefresh}>
-              <RefreshCcw size={14} />
-              <span>{refreshing ? 'Refreshing...' : 'Refresh List'}</span>
-            </button>
-          </div>
-
-          <div className="stats-bar white-panel">
-            <div className="stat-item border-right">
-              <div className="stat-label">
-                 <div className="icon-dot blue"></div>
+        <section className="stats-grid">
+          <div className="stat-card glass-glow blue">
+            <div className="stat-card-inner">
+               <div className="stat-card-header">
+                 <div className="stat-icon-box">
+                   <Printer size={20} />
+                 </div>
                  <span>PENDING JOBS</span>
-              </div>
-              <div className="stat-main">
-                <span className="stat-value">{queueData.length}</span>
-                <span className="stat-sub">Jobs ready to print</span>
-              </div>
-            </div>
-
-            <div className="stat-item border-right">
-              <div className="stat-label">
-                 <div className="icon-dot green"></div>
-                 <span>PRINTER STATUS</span>
-              </div>
-              <div className="stat-main">
-                <span className="stat-value">Online</span>
-                <span className="stat-sub">Cloud connection live</span>
-              </div>
-            </div>
-
-            <div className="stat-item">
-              <div className="stat-label">
-                 <div className="icon-dot green"></div>
-                 <span>LATEST SYNC</span>
-              </div>
-              <div className="stat-main">
-                <span className="stat-value">Active</span>
-                <span className="stat-sub">Updated just now</span>
-              </div>
+               </div>
+               <div className="stat-card-value">{queueData.length}</div>
+               <div className="stat-card-footer">Jobs ready for processing</div>
             </div>
           </div>
 
-          <div className="table-container white-panel">
+          <div className="stat-card glass-glow green">
+            <div className="stat-card-inner">
+               <div className="stat-card-header">
+                 <div className="stat-icon-box">
+                   <Check size={20} />
+                 </div>
+                 <span>SYSTEM STATUS</span>
+               </div>
+               <div className="stat-card-value">Online</div>
+               <div className="stat-card-footer">Node connection is active</div>
+            </div>
+          </div> 
+
+          <div className="stat-card glass-glow grey">
+            <div className="stat-card-inner">
+               <div className="stat-card-header">
+                 <div className="stat-icon-box">
+                   <RefreshCcw size={20} />
+                 </div>
+                 <span>LATEST SYNC</span>
+               </div>
+               <div className="stat-card-value">Live</div>
+               <div className="stat-card-footer">Syncing in real-time</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="queue-main-area">
+          <div className="queue-card-container">
+            <div className="queue-header">
+              <div className="queue-title">
+                <h3>Active Print Queue</h3>
+                <span className="queue-count">{queueData.length} Items</span>
+              </div>
+            </div>
+
             {loading ? (
-              <div className="loader-box">
-                <Loader2 className="spinning" />
-                <p>Fetching orders...</p>
+              <div className="loader-box-premium">
+                <Loader2 className="spinning" size={40} />
+                <p>Establishing secure connection...</p>
               </div>
             ) : queueData.length === 0 ? (
-              <div className="empty-box">
-                <p>No pending jobs found.</p>
+              <div className="empty-box-premium">
+                <div className="empty-icon-wrap">
+                  <Printer size={48} />
+                </div>
+                <h3>All Caught Up!</h3>
+                <p>Your print queue is currently empty. New orders will appear here automatically.</p>
               </div>
             ) : (
-              <table className="queue-table">
-                <thead>
-                  <tr>
-                    <th>File Name</th>
-                    <th>Sender</th>
-                    <th>Pages</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {queueData.map((row) => (
-                    <tr key={row.key} className="row-hover">
-                      <td className="bold">{row.file_name}</td>
-                      <td>{row.sender_name}</td>
-                      <td>{row.page_count}</td>
-                      <td>₹{row.page_count * 5}</td>
-                      <td>
-                        <span className="badge pending">
-                          {row.status || 'pending'}
-                        </span>
-                      </td>
-                      <td className="actions-cell">
-                        <button className="action-btn print-btn" onClick={() => handleViewOrPrint(row, true)}>
-                          <Printer size={14} />
-                          <span>Print</span>
-                        </button>
-                        <button className="action-btn view-btn" onClick={() => handleViewOrPrint(row, false)}>
-                          <Eye size={14} />
-                          <span>View</span>
-                        </button>
-                        <button className="action-btn done-btn" onClick={() => handleMarkPrinted(row)}>
-                          <Check size={14} />
-                          <span>Done</span>
-                        </button>
-                        <button className="action-btn cancel-btn" onClick={() => handleCancel(row)}>
-                          <X size={14} />
-                        </button>
-                      </td>
+              <div className="table-responsive">
+                <table className="queue-table-premium">
+                  <thead>
+                    <tr>
+                      <th>FILE NAME</th>
+                      <th>SENDER INFO</th>
+                      <th>PAGES</th>
+                      <th>EST. COST</th>
+                      <th>STATUS</th>
+                      <th className="text-right">ACTIONS</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {queueData.map((row) => (
+                      <tr key={row.key} className="queue-row">
+                        <td className="file-cell">
+                          <div className="file-name-info">
+                            <span className="file-primary">{row.file_name}</span>
+                            <span className="file-key">{row.key.substring(0, 8)}...</span>
+                          </div>
+                        </td>
+                        <td className="sender-cell">
+                          <span className="sender-name">{row.sender_name}</span>
+                        </td>
+                        <td className="pages-cell">
+                          <span className="page-count-badge">{row.page_count}</span>
+                        </td>
+                        <td className="cost-cell">
+                          <span className="cost-value">₹{(row.page_count * 5).toFixed(2)}</span>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${row.status || 'pending'}`}>
+                            {row.status || 'pending'}
+                          </span>
+                        </td>
+                        <td className="actions-cell-premium">
+                          <div className="action-button-group">
+                            <button className="icon-action-btn print" title="Print" onClick={() => handleViewOrPrint(row, true)}>
+                              <Printer size={16} />
+                            </button>
+                            <button className="icon-action-btn view" title="View" onClick={() => handleViewOrPrint(row, false)}>
+                              <Eye size={16} />
+                            </button>
+                            <button className="icon-action-btn done" title="Mark Done" onClick={() => handleMarkPrinted(row)}>
+                              <Check size={16} />
+                            </button>
+                            <button className="icon-action-btn cancel" title="Cancel" onClick={() => handleCancel(row)}>
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>
@@ -246,222 +274,293 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
           flex: 1;
           display: flex;
           flex-direction: column;
-          background: #F8F9FA;
+          background: #FAFBFC;
           height: 100vh;
           overflow: hidden;
+          font-family: 'Inter', sans-serif;
         }
 
         .system-header {
-          background: #121212;
-          color: rgba(255, 255, 255, 0.7);
-          padding: 8px 16px;
-          font-size: 13px;
+          background: #000000;
+          color: rgba(255, 255, 255, 0.6);
+          padding: 10px 24px;
+          font-size: 11px;
           display: flex;
           justify-content: center;
-          font-family: 'Inter', sans-serif;
-          letter-spacing: 0.5px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 1.5px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .header-brand {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .header-logo-tiny {
-          height: 18px;
-          background: #000;
-          padding: 4px;
-          border-radius: 4px;
-          opacity: 1;
-        }
-
-        .header-brand p { margin: 0; }
+        .header-brand { display: flex; align-items: center; gap: 10px; }
+        .header-logo-tiny { height: 20px; background: #000; padding: 4px; border-radius: 6px; }
 
         .dashboard-content {
           flex: 1;
-          padding: 32px 48px;
+          padding: 40px 60px;
           overflow-y: auto;
+          max-width: 1400px;
+          margin: 0 auto;
+          width: 100%;
         }
 
-        .system-overview-label {
-          color: var(--text-primary);
-          font-weight: 700;
-          font-size: 18px;
-          margin-bottom: 40px;
-          font-family: 'Outfit', sans-serif;
-        }
-
-        .print-queue-section {
+        .content-intro {
           display: flex;
-          flex-direction: column;
-          gap: 20px;
+          justify-content: space-between;
+          align-items: flex-end;
+          margin-bottom: 40px;
         }
 
-        .section-header {
+        .title-area h1 {
+          font-family: 'Outfit', sans-serif;
+          font-size: 36px;
+          font-weight: 800;
+          color: #111;
+          margin: 0 0 8px 0;
+          letter-spacing: -1px;
+        }
+
+        .title-area p {
+          color: #666;
+          margin: 0;
+          font-size: 16px;
+          font-weight: 500;
+        }
+
+        .refresh-btn-premium {
+          background: #000;
+          color: white;
+          border: none;
+          padding: 14px 24px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .refresh-btn-premium:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+          background: #111;
+        }
+
+        .refresh-btn-premium:active { transform: translateY(0); }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 32px;
+          margin-bottom: 48px;
+        }
+
+        .stat-card {
+          border-radius: 24px;
+          padding: 32px;
+          border: 1px solid rgba(0,0,0,0.05);
+          background: white;
+          transition: all 0.3s ease;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.06);
+          border-color: rgba(0,0,0,0.1);
+        }
+
+        .stat-card-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 24px;
+          color: #999;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 1px;
+        }
+
+        .stat-icon-box {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #F8F9FA;
+          color: #111;
+          transition: 0.3s;
+        }
+
+        .stat-card.blue .stat-icon-box { background: #EBF2FF; color: #3B82F6; }
+        .stat-card.green .stat-icon-box { background: #E6FFFA; color: #10B981; }
+
+        .stat-card-value {
+          font-family: 'Outfit';
+          font-size: 38px;
+          font-weight: 800;
+          color: #111;
+          line-height: 1;
+          margin-bottom: 8px;
+        }
+
+        .stat-card-footer {
+          color: #888;
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .queue-card-container {
+          background: white;
+          border-radius: 28px;
+          border: 1px solid rgba(0,0,0,0.05);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+          overflow: hidden;
+        }
+
+        .queue-header {
+          padding: 32px 40px;
+          border-bottom: 1px solid rgba(0,0,0,0.05);
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
 
-        .section-header h2 {
-          font-size: 24px;
-          font-weight: 700;
+        .queue-title h3 {
+          font-family: 'Outfit';
           margin: 0;
-          color: #1a1a1a;
-          font-family: 'Outfit', sans-serif;
-        }
-
-        .refresh-btn {
-          background: #111;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: 0.2s;
-        }
-
-        .refresh-btn:hover { background: #333; }
-
-        .white-panel {
-          background: white;
-          border-radius: 12px;
-          border: 1px solid rgba(0,0,0,0.06);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-        }
-
-        .stats-bar {
-          display: flex;
-          padding: 24px;
-        }
-
-        .stat-item {
-          flex: 1;
-          padding: 0 24px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        
-        .border-right { border-right: 1px solid rgba(0,0,0,0.06); }
-
-        .stat-label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #888;
-          font-size: 11px;
+          font-size: 22px;
           font-weight: 700;
-          letter-spacing: 0.5px;
+          color: #111;
         }
 
-        .icon-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .icon-dot.blue { background: #3B82F6; box-shadow: 0 0 6px rgba(59, 130, 246, 0.4); }
-        .icon-dot.green { background: #10B981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.4); }
-
-        .stat-main { display: flex; flex-direction: column; }
-        .stat-value { font-size: 22px; font-weight: 700; color: #1a1a1a; font-family: 'Outfit'; }
-        .stat-sub { font-size: 11px; color: #999; margin-top: 2px; }
-
-        .table-container { 
-          padding: 8px; 
-          min-height: 400px;
+        .queue-count {
+          font-size: 13px;
+          color: #888;
+          font-weight: 600;
+          display: block;
+          margin-top: 4px;
         }
 
-        .queue-table {
+        .table-responsive { width: 100%; overflow-x: auto; }
+
+        .queue-table-premium {
           width: 100%;
           border-collapse: collapse;
-          font-family: 'Inter', sans-serif;
         }
 
-        .queue-table th {
+        .queue-table-premium th {
           text-align: left;
-          padding: 20px 16px;
-          font-size: 12px;
-          color: #999;
-          font-weight: 500;
-          border-bottom: 1px solid rgba(0,0,0,0.04);
+          padding: 24px 40px;
+          font-size: 11px;
+          font-weight: 800;
+          color: #AAA;
+          letter-spacing: 1px;
+          background: #FDFFFF;
         }
 
-        .queue-table td {
-          padding: 20px 16px;
-          font-size: 14px;
-          color: #444;
-          border-bottom: 1px solid rgba(0,0,0,0.02);
+        .queue-row {
+          transition: 0.2s;
+          border-bottom: 1px solid rgba(0,0,0,0.03);
         }
 
-        .row-hover { transition: 0.1s; }
-        .row-hover:hover { background: #FAFAFA; }
+        .queue-row:hover { background: #F9FBFF; }
+        .queue-row:last-child { border-bottom: none; }
 
-        .bold { font-weight: 600; color: #1a1a1a !important; }
+        .queue-row td { padding: 24px 40px; }
 
-        .badge {
-          padding: 6px 14px;
-          border-radius: 6px;
-          font-size: 13px;
-          font-weight: 500;
-        }
-        .badge.pending { background: #E7F9F3; color: #0CA678; }
+        .file-name-info { display: flex; flex-direction: column; gap: 4px; }
+        .file-primary { font-weight: 700; color: #111; font-size: 15px; }
+        .file-key { font-size: 12px; color: #AAA; font-weight: 500; font-family: monospace; }
 
-        .actions-cell {
-          display: flex;
-          gap: 10px;
-          align-items: center;
-        }
+        .sender-name { font-weight: 600; color: #444; font-size: 15px; }
 
-        .action-btn {
-          height: 34px;
-          padding: 0 12px;
+        .page-count-badge {
+          background: #F0F2F5;
+          color: #111;
+          padding: 6px 12px;
           border-radius: 8px;
+          font-weight: 700;
           font-size: 13px;
-          font-weight: 600;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
         }
 
-        .print-btn { background: #1a1a1a; color: white; border: none; }
-        .print-btn:hover { background: #333; }
+        .cost-value { font-weight: 800; color: #111; font-size: 15px; font-family: 'Outfit'; }
 
-        .view-btn { background: white; color: #1a1a1a; border: 1px solid #1a1a1a; }
-        .view-btn:hover { background: #f5f5f5; }
+        .status-pill {
+          padding: 6px 14px;
+          border-radius: 50px;
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
 
-        .done-btn { background: white; color: #0CA678; border: 1px solid #0CA678; }
-        .done-btn:hover { background: #f0fdf9; }
+        .status-pill.pending { background: #FFF4E6; color: #D9480F; }
+        .status-pill.printed { background: #EBFBEE; color: #2B8A3E; }
 
-        .cancel-btn { background: white; color: #D32F2F; border: 1px solid #D32F2F; min-width: 34px; justify-content: center; }
-        .cancel-btn:hover { background: #fff5f5; }
-        .loader-box, .empty-box {
+        .actions-cell-premium { text-align: right; }
+        .action-button-group {
           display: flex;
-          flex-direction: column;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+
+        .icon-action-btn {
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          display: flex;
           align-items: center;
           justify-content: center;
-          height: 300px;
-          color: #888;
-          gap: 16px;
+          border: 1px solid rgba(0,0,0,0.08);
+          background: white;
+          cursor: pointer;
+          transition: all 0.2s;
+          color: #555;
         }
 
-        .spinning {
-          animation: spin 1s linear infinite;
+        .icon-action-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          color: #111;
+          border-color: #111;
         }
 
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        .icon-action-btn.print:hover { background: #000; color: white; border-color: #000; }
+        .icon-action-btn.done:hover { background: #10B981; color: white; border-color: #10B981; }
+        .icon-action-btn.cancel:hover { background: #EF4444; color: white; border-color: #EF4444; }
+
+        .loader-box-premium, .empty-box-premium {
+          padding: 100px 40px;
+          text-align: center;
+          color: #666;
         }
 
-        .refresh-btn.spinning {
-          pointer-events: none;
-          opacity: 0.7;
+        .empty-icon-wrap {
+          width: 90px;
+          height: 90px;
+          background: #F8F9FA;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 24px;
+          color: #DDD;
         }
+
+        .empty-box-premium h3 { font-family: 'Outfit'; font-size: 24px; color: #111; margin-bottom: 8px; }
+        .empty-box-premium p { max-width: 400px; margin: 0 auto; line-height: 1.6; }
+
+        .spinning { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .text-right { text-align: right; }
       `}</style>
     </div>
   );
