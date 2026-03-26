@@ -12,7 +12,7 @@ public class PingService {
     private static final Logger logger = LoggerFactory.getLogger(PingService.class);
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${PRODUCTION_URL:}")
+    @Value("${PRINTR_BACKEND_URL:}")
     private String productionUrl;
 
     // Ping every 5 minutes (300,000 ms)
