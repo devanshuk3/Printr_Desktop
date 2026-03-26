@@ -1,0 +1,41 @@
+:root {
+  /* Colors */
+  --primary-bg: #F0F2F5;
+  --sidebar-bg: #111111;
+  --panel-bg: #FFFFFF;
+  --accent-green: #0CA678;
+  --accent-blue: #1C7ED6;
+  --accent-red: #E03131;
+  --text-primary: #1A1A1A;
+  --text-secondary: #495057;
+  --text-muted: #868E96;
+  
+  /* Input & Borders */
+  --input-bg: #F8F9FA;
+  --input-border: #DEE2E6;
+  --panel-border: rgba(0, 0, 0, 0.08);
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  font-family: 'Inter', 'Outfit', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Global Transition */
+button, input, .nav-item {
+  transition: all 0.2s ease;
+}
