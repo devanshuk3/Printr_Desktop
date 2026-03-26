@@ -46,16 +46,16 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // Strict allow-list for production safety
         configuration.setAllowedOrigins(List.of(
-            "http://localhost:3000",
-            "app://.",
-            "null"
-        ));
+                "http://localhost:3000",
+                "app://.",
+                "null"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
+        configuration
+                .setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
         configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L); // 1 hour cache
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
