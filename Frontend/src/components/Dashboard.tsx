@@ -150,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
     const name = job.file_name || (job as any).fileName || 'document';
 
-    if (!confirm(`Cancel and delete order for "${name}" from ${job.sender_name}?`)) return;
+    if (!confirm(`Cancel order for "${name}" from ${job.sender_name}?`)) return;
 
     if (!key) {
         alert("Operation aborted: Missing file key.");
@@ -168,8 +168,10 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       });
       
       if (response.ok) {
-        setQueueData(prev => prev.filter(item => item.id !== job.id));
-        alert('Order successfully cancelled and removed.');
+        setQueueData(prev => prev.map(item => 
+          item.id === job.id ? { ...item, status: 'Cancelled' } : item
+        ));
+        alert('Order successfully marked as cancelled.');
       } else {
         const data = await response.json();
         alert(`Cancel Error: ${data.message || 'Failed to cancel'}`);

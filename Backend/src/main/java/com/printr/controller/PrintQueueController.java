@@ -14,8 +14,10 @@ public class PrintQueueController {
     public ResponseEntity<List<Map<String, Object>>> getPrintQueue() {
         // TODO: Logic to fetch queue from DB and match with R2 files
         List<Map<String, Object>> mockQueue = new ArrayList<>();
-        mockQueue.add(Map.of("id", "#ORD-7721", "file", "Thesis_Final.pdf", "customer", "John Doe", "status", "Pending", "pages", 42));
-        mockQueue.add(Map.of("id", "#ORD-7722", "file", "Passport_Scan.jpg", "customer", "Jane Smith", "status", "In Progress", "pages", 1));
+        mockQueue.add(Map.of("id", "#ORD-7721", "file", "Thesis_Final.pdf", "customer", "John Doe", "status", "Pending",
+                "pages", 42));
+        mockQueue.add(Map.of("id", "#ORD-7722", "file", "Passport_Scan.jpg", "customer", "Jane Smith", "status",
+                "In Progress", "pages", 1));
         return ResponseEntity.ok(mockQueue);
     }
 

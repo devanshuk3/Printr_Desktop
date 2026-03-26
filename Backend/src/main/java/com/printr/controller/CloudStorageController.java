@@ -124,16 +124,12 @@ public class CloudStorageController {
                 });
             }
 
-            // Delete from Cloudflare R2
+            // Preserve from deletion as requested, only update SQL status
             if (fileKey != null) {
-                try {
-                    s3Client.deleteObject(bucketName, fileKey);
-                } catch (Exception s3e) {
-                    log.warn("S3 Delete fail (skip): {}", fileKey);
-                }
+                log.info("Skipping S3 deletion for cancelled order: {}, maintaining storage record.", fileKey);
             }
 
-            return ResponseEntity.ok(Map.of("message", "Cancelled successfully", "status", "success"));
+            return ResponseEntity.ok(Map.of("message", "Status updated to Cancelled", "status", "success"));
         } catch (Exception e) {
             log.error("Cancel failed: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
