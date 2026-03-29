@@ -20,6 +20,9 @@ public class Vendor {
     @Column(nullable = true)
     private String password;
 
+    @Column(name = "name", nullable = false)
+    private String name;
+
     @Column(name = "full_name")
     @JsonProperty("full_name")
     private String fullName;

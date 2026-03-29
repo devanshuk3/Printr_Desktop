@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, session } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import isDev from 'electron-is-dev';
@@ -29,7 +29,7 @@ function createWindow() {
 }
 
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-  if (url.startsWith('https://printr-desktop1.onrender.com')) {
+  if (url.startsWith('https://printr-desktop1.onrender.com') || url.startsWith('http://localhost:5000')) {
     event.preventDefault();
     callback(true);
   } else {
@@ -38,6 +38,14 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 });
 
 app.whenReady().then(() => {
+  session.defaultSession.setCertificateVerifyProc((request, callback) => {
+    if (request.hostname === 'printr-desktop1.onrender.com' || request.hostname === 'localhost') {
+      callback(0);
+    } else {
+      callback(-3);
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

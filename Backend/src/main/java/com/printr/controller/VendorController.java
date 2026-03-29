@@ -31,7 +31,7 @@ public class VendorController {
 
         Optional<Vendor> vendor = vendorRepository.findByVendorId(vendorId);
         
-        if (vendor.isPresent() && vendor.get().getPassword().equals(password)) {
+        if (vendor.isPresent() && password != null && password.equals(vendor.get().getPassword())) {
             String token = jwtUtil.generateToken(vendorId);
             return ResponseEntity.ok(Map.of(
                     "token", token,
@@ -50,6 +50,7 @@ public class VendorController {
             Vendor vendor = new Vendor();
             vendor.setVendorId((String) data.get("vendor_id"));
             vendor.setPassword((String) data.get("password"));
+            vendor.setName((String) data.get("full_name")); // maps to 'name' column
             vendor.setFullName((String) data.get("full_name"));
             vendor.setShopName((String) data.get("shop_name"));
             vendor.setPhone((String) data.get("phone"));

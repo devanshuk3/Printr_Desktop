@@ -54,21 +54,13 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        const statusMsg = `Server Error: ${response.status} ${response.statusText}`;
-        console.error(statusMsg);
-        setError(statusMsg);
-        setLoading(false);
-        return;
-      }
-
       const data = await response.json();
       if (data.success && data.token) {
         localStorage.setItem('printr_token', data.token);
         localStorage.setItem('printr_vendor_id', data.vendor_id || identifier);
         onLogin(data.vendor_id || identifier);
       } else {
-        setError(data.message || 'Authentication failed. Please check your credentials.');
+        setError(data.message || `Authentication failed (${response.status}). Please check your credentials.`);
       }
     } catch (err: any) {
       setError(`Connection failed: ${err.message}. Make sure the backend is responding at ${API_BASE_URL}`);

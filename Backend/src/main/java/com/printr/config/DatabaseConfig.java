@@ -14,27 +14,34 @@ public class DatabaseConfig {
     public DataSource dataSource() {
         String databaseUrl = System.getenv("DATABASE_URL");
         
-        // Use local properties if DATABASE_URL is not set (for local dev)
-        if (databaseUrl == null || databaseUrl.isEmpty()) {
-            return null; // Spring will fall back to application.properties
+        String url, username, password;
+        
+        if (databaseUrl != null && !databaseUrl.isEmpty()) {
+            try {
+                URI uri = new URI(databaseUrl);
+                String userInfo = uri.getUserInfo();
+                username = userInfo.split(":")[0];
+                password = userInfo.split(":")[1];
+                url = "jdbc:postgresql://" + uri.getHost() + ":" + uri.getPort() + uri.getPath();
+            } catch (URISyntaxException | ArrayIndexOutOfBoundsException e) {
+                System.err.println("Error parsing DATABASE_URL: " + e.getMessage());
+                // Fallback to defaults
+                url = "jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:5432/postgres";
+                username = "postgres.jduoonbxrlmifpctncnl";
+                password = "Yadav@5467890";
+            }
+        } else {
+            // Development/Local defaults mapping to live Supabase
+            url = "jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:5432/postgres";
+            username = "postgres.jduoonbxrlmifpctncnl";
+            password = "Yadav@5467890";
         }
 
-        try {
-            URI uri = new URI(databaseUrl);
-            String userInfo = uri.getUserInfo();
-            String username = userInfo.split(":")[0];
-            String password = userInfo.split(":")[1];
-            String jdbcUrl = "jdbc:postgresql://" + uri.getHost() + ":" + uri.getPort() + uri.getPath();
-
-            return DataSourceBuilder.create()
-                    .url(jdbcUrl)
-                    .username(username)
-                    .password(password)
-                    .driverClassName("org.postgresql.Driver")
-                    .build();
-        } catch (URISyntaxException | ArrayIndexOutOfBoundsException e) {
-            System.err.println("Error parsing DATABASE_URL: " + e.getMessage());
-            return null; // Fallback
-        }
+        return DataSourceBuilder.create()
+                .url(url)
+                .username(username)
+                .password(password)
+                .driverClassName("org.postgresql.Driver")
+                .build();
     }
 }

@@ -26,7 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @org.springframework.lang.NonNull FilterChain filterChain) throws ServletException, IOException {
         
         String path = request.getServletPath();
-        if (path.equals("/api/login") || path.equals("/api/register") || path.equals("/api/health")) {
+        if (path.equals("/api/login") || path.equals("/api/register") || path.equals("/api/health") || path.equals("/error")) {
             filterChain.doFilter(request, response);
             return;
         }
