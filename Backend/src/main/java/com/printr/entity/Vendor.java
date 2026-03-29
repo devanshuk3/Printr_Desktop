@@ -17,7 +17,7 @@ public class Vendor {
     @JsonProperty("vendor_id")
     private String vendorId;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String password;
 
     @Column(name = "full_name")

@@ -18,6 +18,8 @@ import java.util.List;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.CorsFilter;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 @Configuration
 @EnableWebSecurity
@@ -66,5 +68,12 @@ public class SecurityConfig {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public CorsFilter corsFilter() {
         return new CorsFilter(corsConfigurationSource());
+    }
+
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return username -> {
+            throw new UsernameNotFoundException("No in-memory users configured");
+        };
     }
 }
