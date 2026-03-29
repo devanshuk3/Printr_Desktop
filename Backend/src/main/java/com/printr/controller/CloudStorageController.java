@@ -70,13 +70,13 @@ public class CloudStorageController {
         if (vendorId != null && !fileKey.startsWith(vendorId + "/")) {
             fullKey = vendorId + "/" + fileKey;
         }
-        
+
         log.info("Generating secure link for full path: {}", fullKey);
 
         try {
             Date expiration = new Date(System.currentTimeMillis() + 3600000); // 1 hour
             URL url = s3Client.generatePresignedUrl(bucketName, fullKey, expiration, HttpMethod.GET);
-            
+
             return ResponseEntity.ok(Map.of(
                     "downloadUrl", url.toString(),
                     "status", "success"));
