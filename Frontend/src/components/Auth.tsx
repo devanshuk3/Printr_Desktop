@@ -53,6 +53,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         body: JSON.stringify(payload)
       });
 
+      if (!response.ok) {
+        const statusMsg = `Server Error: ${response.status} ${response.statusText}`;
+        console.error(statusMsg);
+        setError(statusMsg);
+        setLoading(false);
+        return;
+      }
+
       const data = await response.json();
       if (data.success && data.token) {
         localStorage.setItem('printr_token', data.token);
