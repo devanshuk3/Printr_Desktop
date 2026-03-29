@@ -29,8 +29,12 @@ function createWindow() {
 }
 
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-  event.preventDefault();
-  callback(true);
+  if (url.startsWith('https://printr-desktop1.onrender.com')) {
+    event.preventDefault();
+    callback(true);
+  } else {
+    callback(false);
+  }
 });
 
 app.whenReady().then(() => {
