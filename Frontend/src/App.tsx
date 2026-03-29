@@ -7,7 +7,11 @@ import Auth from './components/Auth';
 import './App.css';
 
 function App() {
-  const [vendorId, setVendorId] = useState<string | null>(localStorage.getItem('printr_vendor_id'));
+  const [vendorId, setVendorId] = useState<string | null>(() => {
+    const storedId = localStorage.getItem('printr_vendor_id');
+    const storedToken = localStorage.getItem('printr_token');
+    return (storedId && storedToken) ? storedId : null;
+  });
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const handleLogin = (id: string) => {
