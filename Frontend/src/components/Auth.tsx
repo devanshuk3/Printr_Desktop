@@ -61,8 +61,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       } else {
         setError(data.message || 'Authentication failed. Please check your credentials.');
       }
-    } catch (err) {
-      setError('Connection failed. Make sure the backend is responding.');
+    } catch (err: any) {
+      setError(`Connection failed: ${err.message}. Make sure the backend is responding at ${API_BASE_URL}`);
     } finally {
       setLoading(false);
     }
