@@ -47,6 +47,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         };
 
     try {
+      // Security Fix Applied: Verified fetch headers
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

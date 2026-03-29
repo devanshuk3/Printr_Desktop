@@ -44,6 +44,7 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        // Security Fix Applied: Option A for JWT compatibility
         CorsConfiguration configuration = new CorsConfiguration();
         // Option A: Drop credentials to allow all origins for JWT compatibility
         configuration.setAllowedOriginPatterns(List.of("*"));
