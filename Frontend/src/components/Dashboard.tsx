@@ -168,10 +168,8 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       });
       
       if (response.ok) {
-        setQueueData(prev => prev.map(item => 
-          item.id === job.id ? { ...item, status: 'Cancelled' } : item
-        ));
-        alert('Order successfully marked as cancelled.');
+        setQueueData(prev => prev.filter(item => item.id !== job.id));
+        alert('Order cancelled and removed from queue.');
       } else {
         const data = await response.json();
         alert(`Cancel Error: ${data.message || 'Failed to cancel'}`);

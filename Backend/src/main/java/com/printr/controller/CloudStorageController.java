@@ -92,31 +92,47 @@ public class CloudStorageController {
         Object idObj = request.get("id");
         Long id = idObj != null ? Long.valueOf(idObj.toString()) : null;
 
-        log.info("Cancelling order. ID: {}, Key: {}", id, fileKey);
+        log.info("Cancelling and removing order. ID: {}, Key: {}", id, fileKey);
         try {
             String vendorId = null;
-            // Update Status in DB
+            String resolvedFileKey = fileKey;
+
+            // Find the order to get vendor info before deleting
             if (id != null) {
                 Optional<Order> order = orderRepository.findById(id);
                 if (order.isPresent()) {
                     vendorId = order.get().getVendorId();
-                    order.get().setStatus("Cancelled");
-                    orderRepository.save(order.get());
+                    resolvedFileKey = order.get().getFileKey();
+                    if (resolvedFileKey == null) {
+                        resolvedFileKey = order.get().getFileName();
+                    }
+                    // Delete the order from the database
+                    orderRepository.deleteById(id);
+                    log.info("Order {} deleted from database.", id);
+                } else {
+                    return ResponseEntity.badRequest().body(Map.of("message", "Order not found", "status", "error"));
                 }
             } else if (fileKey != null) {
-                orderRepository.findByFileKey(fileKey).ifPresent(order -> {
-                    order.setStatus("Cancelled");
-                    orderRepository.save(order);
-                });
+                Optional<Order> orderOpt = orderRepository.findByFileKey(fileKey);
+                if (orderOpt.isPresent()) {
+                    vendorId = orderOpt.get().getVendorId();
+                    orderRepository.delete(orderOpt.get());
+                    log.info("Order with key {} deleted from database.", fileKey);
+                }
             }
 
-            // Preserve from deletion as requested, only update SQL status
-            if (fileKey != null && vendorId != null) {
-                String fullKey = fileKey.startsWith(vendorId + "/") ? fileKey : vendorId + "/" + fileKey;
-                log.info("Skipping S3 deletion for cancelled order: {}, maintaining storage record.", fullKey);
+            // Also delete the file from R2 storage
+            if (resolvedFileKey != null && vendorId != null) {
+                String fullKey = resolvedFileKey.startsWith(vendorId + "/") ? resolvedFileKey : vendorId + "/" + resolvedFileKey;
+                try {
+                    s3Client.deleteObject(bucketName, fullKey);
+                    log.info("File {} deleted from R2 storage.", fullKey);
+                } catch (Exception e) {
+                    log.warn("Could not delete file from R2 (may already be removed): {}", e.getMessage());
+                }
             }
 
-            return ResponseEntity.ok(Map.of("message", "Status updated to Cancelled", "status", "success"));
+            return ResponseEntity.ok(Map.of("message", "Order cancelled and removed", "status", "success"));
         } catch (Exception e) {
             log.error("Cancel failed: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));

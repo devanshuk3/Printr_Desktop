@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Database configuration is handled via application.properties.
  * 
- * On Render: Set SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, 
+ * On Render: Set SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME,
  * and SPRING_DATASOURCE_PASSWORD environment variables.
  * 
  * Locally: Falls back to defaults in application.properties.
