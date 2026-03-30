@@ -4,6 +4,7 @@ import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
 import com.printr.entity.Order;
 import com.printr.repository.OrderRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -87,6 +88,7 @@ public class CloudStorageController {
     }
 
     @PostMapping("/delete")
+    @Transactional
     public ResponseEntity<Map<String, String>> deleteVendorOrder(@RequestBody Map<String, Object> request) {
         String fileKey = (String) request.get("file_key");
         Object idObj = request.get("id");

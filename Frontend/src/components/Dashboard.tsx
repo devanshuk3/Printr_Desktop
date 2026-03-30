@@ -179,7 +179,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       alert(`Network Error: ${error.message}`);
     }
   };
-
+ 
   return (
     <div className="dashboard-wrapper">
       <header className="system-header">
