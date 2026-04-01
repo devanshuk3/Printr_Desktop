@@ -1,0 +1,53 @@
+# Java / Spring Boot
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.log
+.mvn/wrapper/*.jar
+.mvn/wrapper/*.class
+!mvnw
+!mvnw.cmd
+.settings/
+.project
+.classpath
+.factorypath
+
+# Node.js / React
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+.stylelintcache
+node_modules.log
+yarn-error.log
+package-lock.json (exclude if you want, but usually kept)
+
+# Electron
+dist-electron/
+release/
+
+# IDEs
+.idea/
+.vscode/ (not usually ignored but user preference?)
+*.swp
+*.swo
+*.DS_Store
+
+# Secrets (IMPORTANT)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+r2_keys.json (if any)
+
+# Misc
+starter.zip
+downloads/
+temp/
