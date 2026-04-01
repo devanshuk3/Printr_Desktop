@@ -1,9 +1,0 @@
-customtkinter
-Pillow
-requests
-psycopg2-binary
-bcrypt
-flask
-gunicorn
-PyJWT
-boto3
