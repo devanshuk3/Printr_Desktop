@@ -43,8 +43,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           phone: phone,
           upi_id: upiId,
           address: address,
-          bw_price: parseFloat(bwPrice),
-          color_price: parseFloat(colorPrice),
+          bw_price: hasBW ? parseFloat(bwPrice) || 0 : 0,
+          color_price: hasColor ? parseFloat(colorPrice) || 0 : 0,
           paper_sizes: paperSizes,
           has_bw_printer: hasBW,
           has_color_printer: hasColor
@@ -186,10 +186,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                       <input 
                         type="text" 
                         placeholder="e.g. 5.00" 
-                        className="auth-text-input bare" 
+                        className={`auth-text-input bare ${!hasBW ? 'disabled' : ''}`} 
                         value={bwPrice}
                         onChange={(e) => setBwPrice(e.target.value)}
-                        required 
+                        required={hasBW}
+                        disabled={!hasBW}
                       />
                     </div>
                     <div className="auth-field half">
@@ -197,10 +198,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                       <input 
                         type="text" 
                         placeholder="e.g. 15.00" 
-                        className="auth-text-input bare" 
+                        className={`auth-text-input bare ${!hasColor ? 'disabled' : ''}`} 
                         value={colorPrice}
                         onChange={(e) => setColorPrice(e.target.value)}
-                        required 
+                        required={hasColor}
+                        disabled={!hasColor}
                       />
                     </div>
                   </div>
@@ -355,6 +357,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         
         .auth-text-input.bare { padding: 16px 20px; }
         .auth-text-input:focus { border-color: #000; background: white; box-shadow: 0 8px 24px rgba(0,0,0,0.04); }
+        .auth-text-input.disabled { background: #EEE; cursor: not-allowed; opacity: 0.6; }
 
         .field-hint { font-size: 11px; color: #999; margin-top: 6px; font-weight: 500; font-style: italic; }
 
