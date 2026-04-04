@@ -5,7 +5,8 @@ import {
   X, 
   RefreshCcw,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Wallet
 } from 'lucide-react';
 import logo from '../assets/Printr_Logo_transparent_White.png';
 
@@ -250,7 +251,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                  <span>SYSTEM STATUS</span>
                </div>
                <div className="stat-card-value">Online</div>
-               <div className="stat-card-footer">Node connection is active</div>
+               <div className="stat-card-footer">System connection is active</div>
             </div>
           </div> 
 
@@ -281,9 +282,6 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
               <div className="loader-box-premium">
                 <Loader2 className="spinning" size={40} />
                 <p>Establishing secure connection...</p>
-                <div style={{ fontSize: '12px', color: '#BBB', marginTop: '10px' }}>
-                  Targeting: {API_BASE_URL}
-                </div>
               </div>
             ) : connectionError ? (
               <div className="empty-box-premium error-box">
@@ -339,8 +337,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                         </td>
                         <td className="cost-cell">
                           <span className="cost-value">
-                            ₹{((row.page_count || (row as any).pageCount || (row as any).pages || 1) * 
-                              (row.is_color ? prices.color : prices.bw)).toFixed(2)}
+                            ₹{Number((row as any).total_amount || (row as any).amount || 0).toFixed(2)}
                           </span>
                         </td>
                         <td>
@@ -502,6 +499,8 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
         .stat-card.blue .stat-icon-box { background: #EBF2FF; color: #3B82F6; }
         .stat-card.green .stat-icon-box { background: #E6FFFA; color: #10B981; }
+        .stat-card.gold .stat-icon-box { background: #FFF9E6; color: #F59E0B; }
+        .gold-icon { color: #F59E0B; }
 
         .stat-card-value {
           font-family: 'Outfit';
