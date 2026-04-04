@@ -38,7 +38,7 @@ function App() {
       case 'config':
       case 'upi':
       case 'settings':
-        return <PrinterConfig />;
+        return <PrinterConfig activeTab={activeTab} />;
       default:
         return <Dashboard vendorId={vendorId} />;
     }

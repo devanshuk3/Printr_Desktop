@@ -30,7 +30,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setLoading(true);
     setError('');
 
-    const endpoint = isLogin ? '/api/login' : '/api/register';
+    const endpoint = isLogin ? '/api/vendors/login' : '/api/vendors/register';
     const payload = isLogin 
       ? { vendor_id: identifier, password: password }
       : { 

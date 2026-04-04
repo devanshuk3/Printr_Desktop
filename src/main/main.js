@@ -1,8 +1,17 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow, session, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import isDev from 'electron-is-dev';
 
+ipcMain.handle('get-printers', async (event) => {
+  try {
+    // Current Electron versions support getPrinters() on webContents
+    return event.sender.getPrinters();
+  } catch (err) {
+    console.warn("getPrinters failed, trying fallback:", err);
+    return [];
+  }
+});
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -19,7 +28,7 @@ function createWindow() {
 
   const startURL = isDev
     ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../../dist/index.html')}`;
+    : `file://${path.join(__dirname, 'dist/index.html')}`;
 
   mainWindow.loadURL(startURL);
 

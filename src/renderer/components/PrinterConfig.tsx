@@ -1,17 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Printer, Wallet, Info, Check } from 'lucide-react';
+import { API_BASE_URL, getHeaders } from '../config';
 
-const PrinterConfig: React.FC = () => {
+interface PrinterConfigProps {
+  activeTab?: string;
+}
+
+const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSave = () => {
+  // Form State
+  const [config, setConfig] = useState({
+    auto_accept_jobs: true,
+    bw_printer: '',
+    color_printer: '',
+    bw_price: 2,
+    color_price: 10,
+    enable_upi: true,
+    upi_id: '',
+    shop_name: '',
+    min_amount: 1
+  });
+
+  const [printers, setPrinters] = useState<any[]>([]);
+
+  // Fetch configuration and printers on mount
+  useEffect(() => {
+    const fetchPrinters = async () => {
+        try {
+            const { ipcRenderer } = (window as any).require('electron');
+            const list = await ipcRenderer.invoke('get-printers');
+            console.log("Hardware Printers:", list);
+            setPrinters(list);
+        } catch (err) {
+            console.error("Failed to fetch printers from electron:", err);
+        }
+    };
+    fetchPrinters();
+
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/vendors/settings/me`, {
+          headers: getHeaders()
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setConfig({
+            auto_accept_jobs: data.auto_accept_jobs ?? true,
+            bw_printer: data.bw_printer || '',
+            color_printer: data.color_printer || '',
+            bw_price: parseFloat(data.bw_price) || 2,
+            color_price: parseFloat(data.color_price) || 10,
+            enable_upi: data.enable_upi ?? true,
+            upi_id: data.upi_id || '',
+            shop_name: data.shop_name || '',
+            min_amount: parseFloat(data.min_amount) || 1
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch config:', err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/vendors/settings`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(config)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save configuration');
+      }
+
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 1200);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleChange = (field: string, value: any) => {
+    setConfig((prev: any) => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -23,6 +103,7 @@ const PrinterConfig: React.FC = () => {
 
       <div className="config-cards-grid">
         {/* Printer Settings Card */}
+        {(activeTab === 'config' || activeTab === 'settings') && (
         <section className="config-card-panel white-card">
           <div className="card-header-with-icon">
             <Printer size={20} className="blue-icon" />
@@ -30,10 +111,43 @@ const PrinterConfig: React.FC = () => {
           </div>
           
           <div className="config-form">
+            <div className="form-item-row no-border">
+               <label className="form-label-bold">B&W Printing Device</label>
+               <select 
+                className="standard-styled-input select-compact"
+                value={config.bw_printer}
+                onChange={(e) => handleChange('bw_printer', e.target.value)}
+               >
+                 <option value="">Select B&W Printer...</option>
+                 {printers.map((p, idx) => (
+                    <option key={idx} value={p.name}>{p.name}</option>
+                 ))}
+               </select>
+            </div>
+
+            <div className="form-item-row">
+               <label className="form-label-bold">Color Printing Device</label>
+               <select 
+                className="standard-styled-input select-compact"
+                value={config.color_printer}
+                onChange={(e) => handleChange('color_printer', e.target.value)}
+               >
+                 <option value="">Select Color Printer...</option>
+                 {printers.map((p, idx) => (
+                    <option key={idx} value={p.name}>{p.name}</option>
+                 ))}
+               </select>
+            </div>
+
             <div className="form-item-row">
               <label className="form-label-bold">Auto-Accept Jobs</label>
               <div className="toggle-switch-container">
-                <input type="checkbox" id="auto-accept" defaultChecked />
+                <input 
+                  type="checkbox" 
+                  id="auto-accept" 
+                  checked={config.auto_accept_jobs}
+                  onChange={(e) => handleChange('auto_accept_jobs', e.target.checked)} 
+                />
                 <label htmlFor="auto-accept" className="toggle-slider"></label>
               </div>
             </div>
@@ -42,7 +156,13 @@ const PrinterConfig: React.FC = () => {
               <label className="form-label-bold">B&W Price per page</label>
               <div className="currency-input-field">
                 <span className="currency-symbol">₹</span>
-                <input type="number" defaultValue="2" step="0.5" className="clean-input" />
+                <input 
+                  type="number" 
+                  value={config.bw_price}
+                  step="0.5" 
+                  className="clean-input" 
+                  onChange={(e) => handleChange('bw_price', parseFloat(e.target.value))}
+                />
               </div>
             </div>
 
@@ -50,7 +170,13 @@ const PrinterConfig: React.FC = () => {
               <label className="form-label-bold">Color Price per page</label>
               <div className="currency-input-field">
                 <span className="currency-symbol">₹</span>
-                <input type="number" defaultValue="10" step="1" className="clean-input" />
+                <input 
+                  type="number" 
+                  value={config.color_price}
+                  step="1" 
+                  className="clean-input" 
+                  onChange={(e) => handleChange('color_price', parseFloat(e.target.value))}
+                />
               </div>
             </div>
             
@@ -60,8 +186,9 @@ const PrinterConfig: React.FC = () => {
             </div>
           </div>
         </section>
+        )}
 
-        {/* UPI Setup Card */}
+        {(activeTab === 'upi') && (
         <section className="config-card-panel white-card">
           <div className="card-header-with-icon">
             <Wallet size={20} className="green-icon" />
@@ -72,30 +199,53 @@ const PrinterConfig: React.FC = () => {
             <div className="form-item-row">
               <label className="form-label-bold">Enable UPI Payments</label>
               <div className="toggle-switch-container">
-                <input type="checkbox" id="enable-upi" defaultChecked />
+                <input 
+                  type="checkbox" 
+                  id="enable-upi" 
+                  checked={config.enable_upi}
+                  onChange={(e) => handleChange('enable_upi', e.target.checked)}
+                />
                 <label htmlFor="enable-upi" className="toggle-slider"></label>
               </div>
             </div>
 
             <div className="form-item-row horizontal-input-group">
                <label className="form-label-bold">UPI ID (for payments)</label>
-               <input type="text" placeholder="e.g. example@upi" className="standard-styled-input" />
+               <input 
+                  type="text" 
+                  placeholder="e.g. example@upi" 
+                  className="standard-styled-input" 
+                  value={config.upi_id}
+                  onChange={(e) => handleChange('upi_id', e.target.value)}
+                />
             </div>
 
             <div className="form-item-row horizontal-input-group">
-              <label className="form-label-bold">Merchant Name</label>
-              <input type="text" placeholder="e.g. XYZ PRINT" className="standard-styled-input" />
+              <label className="form-label-bold">Merchant Name (Shop Name)</label>
+              <input 
+                type="text" 
+                placeholder="e.g. XYZ PRINT" 
+                className="standard-styled-input" 
+                value={config.shop_name}
+                onChange={(e) => handleChange('shop_name', e.target.value)}
+              />
             </div>
 
             <div className="form-item-row">
               <label className="form-label-bold">Min. Amount</label>
                <div className="currency-input-field small-input">
                 <span className="currency-symbol">₹</span>
-                <input type="number" defaultValue="1" className="clean-input" />
+                <input 
+                  type="number" 
+                  value={config.min_amount}
+                  className="clean-input" 
+                  onChange={(e) => handleChange('min_amount', parseFloat(e.target.value))}
+                />
               </div>
             </div>
           </div>
         </section>
+        )}
       </div>
 
       <div className="config-action-footer">
@@ -106,6 +256,11 @@ const PrinterConfig: React.FC = () => {
           <div className="save-success-toast">
             <Check size={16} />
             <span>Settings synced successfully!</span>
+          </div>
+        )}
+        {error && (
+          <div className="save-error-toast" style={{ color: '#ff4444', fontWeight: '700' }}>
+            <span>Error: {error}</span>
           </div>
         )}
       </div>
@@ -182,6 +337,8 @@ const PrinterConfig: React.FC = () => {
           font-weight: 500; font-size: 14px; transition: all 0.2s;
         }
         .standard-styled-input:focus { border-color: #1a1a1a; background: white; }
+        .select-compact { background-image: none; cursor: pointer; height: 48px; margin-left: 12px; max-width: 250px; }
+        .no-border { border-bottom: none; padding-bottom: 0px; }
 
         .tip-box { 
           display: flex; gap: 12px; background: #ebf5ff; padding: 16px; border-radius: 12px; 

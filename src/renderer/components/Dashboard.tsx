@@ -14,9 +14,11 @@ import { API_BASE_URL, getHeaders } from '../config';
 interface PrintJob {
   id: number;
   file_key?: string;
+
   file_name?: string;
   sender_name?: string;
   page_count?: number;
+  is_color?: boolean;
   status: string;
 }
 
@@ -35,7 +37,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30s for Render wakes
 
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/r2/files?vendor_id=${vendorId}`, {
+      const resp = await fetch(`${API_BASE_URL}/api/vendors/files?vendor_id=${vendorId}`, {
         headers: getHeaders(),
         signal: controller.signal
       });
@@ -73,7 +75,27 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     }
   };
 
+  const [prices, setPrices] = useState({ bw: 5, color: 10 });
+
+  const fetchVendorPrices = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/vendors/settings/me`, {
+        headers: getHeaders()
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPrices({
+          bw: parseFloat(data.bw_price) || 5,
+          color: parseFloat(data.color_price) || 10
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch prices:', err);
+    }
+  };
+
   useEffect(() => {
+    fetchVendorPrices();
     fetchQueue();
     const interval = setInterval(fetchQueue, 30000);
     return () => clearInterval(interval);
@@ -94,7 +116,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/r2/download`, {
+      const response = await fetch(`${API_BASE_URL}/api/vendors/download`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ 
@@ -128,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
       // If it was a print action, also mark as printed in DB
       if (isPrint) {
-        await fetch(`${API_BASE_URL}/api/r2/printed`, {
+        await fetch(`${API_BASE_URL}/api/vendors/printed-legacy`, {
           method: 'POST',
           headers: getHeaders(),
           body: JSON.stringify({ 
@@ -158,7 +180,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/r2/delete`, {
+      const response = await fetch(`${API_BASE_URL}/api/vendors/delete`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ 
@@ -316,7 +338,10 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                           <span className="page-count-badge">{row.page_count || (row as any).pageCount || (row as any).pages}</span>
                         </td>
                         <td className="cost-cell">
-                          <span className="cost-value">₹{((row.page_count || (row as any).pageCount || (row as any).pages || 0) * 5).toFixed(2)}</span>
+                          <span className="cost-value">
+                            ₹{((row.page_count || (row as any).pageCount || (row as any).pages || 1) * 
+                              (row.is_color ? prices.color : prices.bw)).toFixed(2)}
+                          </span>
                         </td>
                         <td>
                           <span className={`status-pill ${row.status || 'pending'}`}>

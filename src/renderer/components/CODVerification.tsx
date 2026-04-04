@@ -1,15 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, History } from 'lucide-react';
+import { API_BASE_URL, getHeaders } from '../config';
 
 const CODVerification: React.FC = () => {
   const [orderId, setOrderId] = useState('');
+  const [activities, setActivities] = useState<any[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
-  const activities = [
-    { id: '#ORD-7720', type: 'Verified', time: '5 mins ago', customer: 'Deepak S.' },
-    { id: '#ORD-7718', type: 'Rejected', time: '12 mins ago', customer: 'Unknown' },
-    { id: '#ORD-7715', type: 'Verified', time: '1 hour ago', customer: 'Sameer J.' },
-    { id: '#ORD-7712', type: 'Verified', time: '2 hours ago', customer: 'Pooja R.' },
-  ];
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/vendors/activity-log`, {
+        headers: getHeaders()
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setActivities(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+    const interval = setInterval(fetchHistory, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleUpdateStatus = async (status: 'printed' | 'rejected') => {
+    if (!orderId) {
+      setMessage({ text: 'Please enter an Order ID', type: 'error' });
+      return;
+    }
+
+    setIsProcessing(true);
+    setMessage(null);
+
+    // Remove '#' if users prefix it (mock was #ORD-7721)
+    const numericId = orderId.replace(/^.*(\d+)$/, '$1');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/vendors/update-order-status`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ 
+          orderId: numericId,
+          status: status
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage({ text: `Order ${numericId} marked as ${status} successfully`, type: 'success' });
+        setOrderId('');
+        fetchHistory();
+      } else {
+        setMessage({ text: data.message || `Failed to update order ${numericId}`, type: 'error' });
+      }
+    } catch (err: any) {
+      setMessage({ text: err.message, type: 'error' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    const dt = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - dt.getTime()) / 60000); // mins
+
+    if (diff < 1) return 'Just now';
+    if (diff < 60) return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff/60)}h ago`;
+    return dt.toLocaleDateString();
+  };
 
   return (
     <div className="cod-container">
@@ -28,14 +94,33 @@ const CODVerification: React.FC = () => {
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
               className="cod-input"
+              disabled={isProcessing}
             />
             <div className="input-glow"></div>
           </div>
 
           <div className="cod-actions">
-            <button className="reject-btn">Reject Order</button>
-            <button className="verify-btn">Verify & Process Print</button>
+            <button 
+              className="reject-btn" 
+              onClick={() => handleUpdateStatus('rejected')}
+              disabled={isProcessing}
+            >
+              Reject Order
+            </button>
+            <button 
+              className="verify-btn" 
+              onClick={() => handleUpdateStatus('printed')}
+              disabled={isProcessing}
+            >
+              {isProcessing ? 'Processing...' : 'Verify & Process Print'}
+            </button>
           </div>
+
+          {message && (
+             <div style={{ marginTop: '20px', color: message.type === 'success' ? '#10B981' : '#EF4444', fontWeight: 'bold' }}>
+               {message.text}
+             </div>
+          )}
         </div>
       </div>
 
@@ -45,17 +130,20 @@ const CODVerification: React.FC = () => {
           <span>Activity Log</span>
         </div>
         <div className="timeline">
+          {activities.length === 0 && <p style={{ color: '#888', textAlign: 'center', marginTop: '20px' }}>No recent activity</p>}
           {activities.map((act, i) => (
             <div key={i} className="timeline-item">
-              <div className={`timeline-dot ${act.type.toLowerCase()}`}></div>
+              <div className={`timeline-dot ${act.status === 'printed' ? 'verified' : 'rejected'}`}></div>
               <div className="timeline-content">
                 <div className="timeline-top">
-                  <span className="log-order">{act.id}</span>
-                  <span className="log-time">{act.time}</span>
+                  <span className="log-order">#{act.id}</span>
+                  <span className="log-time">{formatTime(act.created_at)}</span>
                 </div>
                 <div className="timeline-bottom">
-                  <span className={`log-type ${act.type.toLowerCase()}`}>{act.type}</span>
-                  <span className="log-customer">{act.customer}</span>
+                  <span className={`log-type ${act.status === 'printed' ? 'verified' : 'rejected'}`}>
+                    {act.status === 'printed' ? 'Verified' : 'Rejected'}
+                  </span>
+                  <span className="log-customer">{act.customer_name || 'Anonymous'}</span>
                 </div>
               </div>
             </div>
