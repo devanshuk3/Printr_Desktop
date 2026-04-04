@@ -21,6 +21,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [bwPrice, setBwPrice] = useState('5.00');
   const [colorPrice, setColorPrice] = useState('15.00');
   const [paperSizes, setPaperSizes] = useState('A4, A3, Letter');
+  const [hasBW, setHasBW] = useState(true);
+  const [hasColor, setHasColor] = useState(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,7 +45,9 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           address: address,
           bw_price: parseFloat(bwPrice),
           color_price: parseFloat(colorPrice),
-          paper_sizes: paperSizes
+          paper_sizes: paperSizes,
+          has_bw_printer: hasBW,
+          has_color_printer: hasColor
         };
 
     try {
@@ -63,7 +67,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         setError(data.message || `Authentication failed (${response.status}). Please check your credentials.`);
       }
     } catch (err: any) {
-      setError(`Connection failed: ${err.message}. Make sure the backend is responding at ${API_BASE_URL}`);
+      setError(`Connection failed: ${err.message}. Please check your internet connection or try again later.`);
     } finally {
       setLoading(false);
     }
@@ -201,6 +205,27 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     </div>
                   </div>
 
+                  <div className="auth-field-row">
+                    <div className="auth-checkbox-field">
+                      <input 
+                        type="checkbox" 
+                        id="hasBW"
+                        checked={hasBW}
+                        onChange={(e) => setHasBW(e.target.checked)}
+                      />
+                      <label htmlFor="hasBW">Has B/W Printer</label>
+                    </div>
+                    <div className="auth-checkbox-field">
+                      <input 
+                        type="checkbox" 
+                        id="hasColor"
+                        checked={hasColor}
+                        onChange={(e) => setHasColor(e.target.checked)}
+                      />
+                      <label htmlFor="hasColor">Has Color Printer</label>
+                    </div>
+                  </div>
+
                   <div className="auth-field">
                     <label className="auth-label">PAPER SIZES (COMMA SEPARATED)</label>
                     <input 
@@ -335,6 +360,28 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
         .auth-field-row { display: flex; gap: 16px; width: 100%; }
         .auth-field.half { flex: 1; }
+        
+        .auth-checkbox-field {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 24px;
+          flex: 1;
+        }
+        
+        .auth-checkbox-field input[type="checkbox"] {
+          width: 20px;
+          height: 20px;
+          accent-color: #000;
+          cursor: pointer;
+        }
+
+        .auth-checkbox-field label {
+          font-size: 13px;
+          font-weight: 600;
+          color: #333;
+          cursor: pointer;
+        }
 
         .auth-error-hint { background: #fff5f5; color: #c92a2a; padding: 12px; border-radius: 12px; font-size: 13px; font-weight: 600; margin-bottom: 24px; text-align: center; border: 1px solid #ffc9c9; }
 
