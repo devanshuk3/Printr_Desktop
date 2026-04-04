@@ -21,7 +21,9 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
     enable_upi: true,
     upi_id: '',
     shop_name: '',
-    min_amount: 1
+    min_amount: 1,
+    has_bw_printer: true,
+    has_color_printer: false
   });
 
   const [printers, setPrinters] = useState<any[]>([]);
@@ -56,7 +58,9 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
             enable_upi: data.enable_upi ?? true,
             upi_id: data.upi_id || '',
             shop_name: data.shop_name || '',
-            min_amount: parseFloat(data.min_amount) || 1
+            min_amount: parseFloat(data.min_amount) || 1,
+            has_bw_printer: data.has_bw_printer ?? true,
+            has_color_printer: data.has_color_printer ?? false
           });
         }
       } catch (err) {
@@ -111,8 +115,9 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
           </div>
           
           <div className="config-form">
-            <div className="form-item-row no-border">
-               <label className="form-label-bold">B&W Printing Device</label>
+            {config.has_bw_printer && (
+             <div className="form-item-row no-border">
+                <label className="form-label-bold">B&W Printing Device</label>
                <select 
                 className="standard-styled-input select-compact"
                 value={config.bw_printer}
@@ -122,22 +127,25 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
                  {printers.map((p, idx) => (
                     <option key={idx} value={p.name}>{p.name}</option>
                  ))}
-               </select>
-            </div>
-
-            <div className="form-item-row">
-               <label className="form-label-bold">Color Printing Device</label>
-               <select 
-                className="standard-styled-input select-compact"
-                value={config.color_printer}
-                onChange={(e) => handleChange('color_printer', e.target.value)}
-               >
-                 <option value="">Select Color Printer...</option>
-                 {printers.map((p, idx) => (
-                    <option key={idx} value={p.name}>{p.name}</option>
-                 ))}
-               </select>
-            </div>
+                </select>
+             </div>
+             )}
+ 
+             {config.has_color_printer && (
+             <div className="form-item-row">
+                <label className="form-label-bold">Color Printing Device</label>
+                <select 
+                 className="standard-styled-input select-compact"
+                 value={config.color_printer}
+                 onChange={(e) => handleChange('color_printer', e.target.value)}
+                >
+                  <option value="">Select Color Printer...</option>
+                  {printers.map((p, idx) => (
+                     <option key={idx} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+             </div>
+             )}
 
             <div className="form-item-row">
               <label className="form-label-bold">Auto-Accept Jobs</label>
@@ -152,33 +160,37 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
               </div>
             </div>
 
-            <div className="form-item-row">
-              <label className="form-label-bold">B&W Price per page</label>
-              <div className="currency-input-field">
-                <span className="currency-symbol">₹</span>
-                <input 
-                  type="number" 
-                  value={config.bw_price}
-                  step="0.5" 
-                  className="clean-input" 
-                  onChange={(e) => handleChange('bw_price', parseFloat(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <div className="form-item-row">
-              <label className="form-label-bold">Color Price per page</label>
-              <div className="currency-input-field">
-                <span className="currency-symbol">₹</span>
-                <input 
-                  type="number" 
-                  value={config.color_price}
-                  step="1" 
-                  className="clean-input" 
-                  onChange={(e) => handleChange('color_price', parseFloat(e.target.value))}
-                />
-              </div>
-            </div>
+             {config.has_bw_printer && (
+             <div className="form-item-row">
+               <label className="form-label-bold">B&W Price per page</label>
+               <div className="currency-input-field">
+                 <span className="currency-symbol">₹</span>
+                 <input 
+                   type="number" 
+                   value={config.bw_price}
+                   step="0.5" 
+                   className="clean-input" 
+                   onChange={(e) => handleChange('bw_price', parseFloat(e.target.value))}
+                 />
+               </div>
+             </div>
+             )}
+ 
+             {config.has_color_printer && (
+             <div className="form-item-row">
+               <label className="form-label-bold">Color Price per page</label>
+               <div className="currency-input-field">
+                 <span className="currency-symbol">₹</span>
+                 <input 
+                   type="number" 
+                   value={config.color_price}
+                   step="1" 
+                   className="clean-input" 
+                   onChange={(e) => handleChange('color_price', parseFloat(e.target.value))}
+                 />
+               </div>
+             </div>
+             )}
             
             <div className="tip-box">
                <Info size={16} className="info-icon" />
