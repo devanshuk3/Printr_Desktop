@@ -32,13 +32,22 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
+  const [offset, setOffset] = useState(0); // Legacy support kept for now
+  const [total, setTotal] = useState(0);
+  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const limit = 20;
 
   const fetchQueue = async () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30s for Render wakes
 
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/vendors/files?vendor_id=${vendorId}`, {
+      const currentCursor = cursorHistory[pageIndex];
+      const cursorParam = currentCursor ? `&cursor=${encodeURIComponent(currentCursor)}` : '';
+      const resp = await fetch(`${API_BASE_URL}/api/vendors/files?vendor_id=${vendorId}&limit=${limit}${cursorParam}`, {
         headers: getHeaders(),
         signal: controller.signal
       });
@@ -55,6 +64,8 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       const data = await resp.json();
       if (data.files) {
         setQueueData(data.files);
+        setTotal(data.total || data.files.length);
+        setNextCursor(data.nextCursor);
         setConnectionError(null);
         if (data.files.length > 0) {
             console.log('Sample Data Structure (First Entry):');
@@ -95,17 +106,31 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     }
   };
 
+  const [pollInterval, setPollInterval] = useState(30000);
+
   useEffect(() => {
     fetchVendorPrices();
     fetchQueue();
-    const interval = setInterval(fetchQueue, 30000);
-    return () => clearInterval(interval);
   }, [vendorId]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchQueue, pollInterval);
+    return () => clearInterval(interval);
+  }, [vendorId, pageIndex, pollInterval]);
+
+  useEffect(() => {
+    // Adaptive Polling: Slow down when idle (60s), speed up when active (20s)
+    if (queueData.length === 0 && pollInterval !== 60000) {
+      setPollInterval(60000);
+    } else if (queueData.length > 0 && pollInterval !== 20000) {
+      setPollInterval(20000);
+    }
+  }, [queueData.length]);
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchQueue();
-  };
+  };                
 
   const handleViewOrPrint = async (job: PrintJob, isPrint: boolean) => {
     const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
@@ -115,6 +140,9 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         alert("Operation aborted: Identifer (file_key) is missing for this record.");
         return;
     }
+
+    if (processingIds.has(job.id)) return;
+    setProcessingIds(prev => new Set(prev).add(job.id));
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/vendors/download`, {
@@ -166,6 +194,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     } catch (error: any) {
       console.error('Operation failed:', error);
       alert(`Operation failed for Row ${job.id} (Key: ${key})\nError: ${error.message}`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
     }
   };
 
@@ -179,6 +213,9 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         alert("Operation aborted: Missing file key.");
         return;
     }
+
+    if (processingIds.has(job.id)) return;
+    setProcessingIds(prev => new Set(prev).add(job.id));
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/vendors/delete`, {
@@ -200,6 +237,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     } catch (error: any) {
       console.error('Delete failed:', error);
       alert(`Network Error: ${error.message}`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
     }
   };
  
@@ -312,6 +355,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                 <table className="queue-table-premium">
                   <thead>
                     <tr>
+                      <th>ORDER ID</th>
                       <th>FILE NAME</th>
                       <th>SENDER INFO</th>
                       <th>PAGES</th>
@@ -323,6 +367,9 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                   <tbody>
                     {queueData.map((row) => (
                       <tr key={row.id} className="queue-row">
+                        <td className="id-cell">
+                          <span className="order-id-badge">#{row.id}</span>
+                        </td>
                         <td className="file-cell">
                           <div className="file-name-info">
                             <span className="file-primary">{row.file_name || (row as any).fileName || (row as any).file}</span>
@@ -347,13 +394,28 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                         </td>
                         <td className="actions-cell-premium">
                           <div className="action-button-group">
-                            <button className="icon-action-btn print" title="Print & Mark Done" onClick={() => handleViewOrPrint(row, true)}>
+                            <button 
+                              className="icon-action-btn print" 
+                              title="Print & Mark Done" 
+                              onClick={() => handleViewOrPrint(row, true)}
+                              disabled={processingIds.has(row.id)}
+                            >
                               <Printer size={16} />
                             </button>
-                            <button className="icon-action-btn view" title="Quick View" onClick={() => handleViewOrPrint(row, false)}>
+                            <button 
+                              className="icon-action-btn view" 
+                              title="Quick View" 
+                              onClick={() => handleViewOrPrint(row, false)}
+                              disabled={processingIds.has(row.id)}
+                            >
                               <Eye size={16} />
                             </button>
-                            <button className="icon-action-btn cancel" title="Cancel Order" onClick={() => handleCancel(row)}>
+                            <button 
+                              className="icon-action-btn cancel" 
+                              title="Cancel Order" 
+                              onClick={() => handleCancel(row)}
+                              disabled={processingIds.has(row.id)}
+                            >
                               <X size={16} />
                             </button>
                           </div>
@@ -362,6 +424,34 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {total > limit && (
+              <div className="pagination-bar">
+                <button 
+                  className="page-btn" 
+                  disabled={pageIndex === 0}
+                  onClick={() => setPageIndex(p => p - 1)}
+                >
+                  Previous
+                </button>
+                <span className="page-info">
+                  Page {pageIndex + 1} ({total} total jobs)
+                </span>
+                <button 
+                  className="page-btn" 
+                  disabled={!nextCursor || (pageIndex + 1) * limit >= total}
+                  onClick={() => {
+                    if (!cursorHistory[pageIndex + 1] && nextCursor) {
+                      setCursorHistory(prev => [...prev, nextCursor]);
+                    }
+                    setPageIndex(p => p + 1);
+                  }}
+                >
+                  Next
+                </button>
               </div>
             )}
           </div>
@@ -575,6 +665,61 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         .queue-row:last-child { border-bottom: none; }
 
         .queue-row td { padding: 24px 40px; }
+        
+        .pagination-bar {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 20px;
+          margin-top: 30px;
+          padding: 20px;
+          border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .page-btn {
+          padding: 10px 20px;
+          border-radius: 10px;
+          border: 1px solid var(--accent-blue);
+          background: transparent;
+          color: var(--accent-blue);
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+          background: var(--accent-blue);
+          color: white;
+        }
+
+        .page-btn:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+          border-color: #ccc;
+          color: #888;
+        }
+
+        .page-info {
+          font-size: 14px;
+          color: #666;
+          font-weight: 500;
+        }
+
+        .icon-action-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          filter: grayscale(1);
+        }
+
+        .order-id-badge {
+          background: #000;
+          color: white;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-weight: 800;
+          font-size: 13px;
+          font-family: 'Outfit';
+        }
 
         .file-name-info { display: flex; flex-direction: column; gap: 4px; }
         .file-primary { font-weight: 700; color: #111; font-size: 15px; }

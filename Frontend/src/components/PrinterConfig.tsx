@@ -31,14 +31,14 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
   // Fetch configuration and printers on mount
   useEffect(() => {
     const fetchPrinters = async () => {
-        try {
-            const { ipcRenderer } = (window as any).require('electron');
-            const list = await ipcRenderer.invoke('get-printers');
-            console.log("Hardware Printers:", list);
-            setPrinters(list);
-        } catch (err) {
-            console.error("Failed to fetch printers from electron:", err);
-        }
+      try {
+        const { ipcRenderer } = (window as any).require('electron');
+        const list = await ipcRenderer.invoke('get-printers');
+        console.log("Hardware Printers:", list);
+        setPrinters(list);
+      } catch (err) {
+        console.error("Failed to fetch printers from electron:", err);
+      }
     };
     fetchPrinters();
 
@@ -101,162 +101,162 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
   return (
     <div className="config-viewport">
       <header className="config-header">
-         <h1 className="config-title">Configuration</h1>
-         <p className="config-subtitle">Adjust your pricing, printer settings, and payment methods.</p>
+        <h1 className="config-title">Configuration</h1>
+        <p className="config-subtitle">Adjust your pricing, printer settings, and payment methods.</p>
       </header>
 
       <div className="config-cards-grid">
         {/* Printer Settings Card */}
         {(activeTab === 'config' || activeTab === 'settings') && (
-        <section className="config-card-panel white-card">
-          <div className="card-header-with-icon">
-            <Printer size={20} className="blue-icon" />
-            <h3 className="card-header-text">Printer Settings</h3>
-          </div>
-          
-          <div className="config-form">
-            {config.has_bw_printer && (
-             <div className="form-item-row no-border">
-                <label className="form-label-bold">B&W Printing Device</label>
-               <select 
-                className="standard-styled-input select-compact"
-                value={config.bw_printer}
-                onChange={(e) => handleChange('bw_printer', e.target.value)}
-               >
-                 <option value="">Select B&W Printer...</option>
-                 {printers.map((p, idx) => (
-                    <option key={idx} value={p.name}>{p.name}</option>
-                 ))}
-                </select>
-             </div>
-             )}
- 
-             {config.has_color_printer && (
-             <div className="form-item-row">
-                <label className="form-label-bold">Color Printing Device</label>
-                <select 
-                 className="standard-styled-input select-compact"
-                 value={config.color_printer}
-                 onChange={(e) => handleChange('color_printer', e.target.value)}
-                >
-                  <option value="">Select Color Printer...</option>
-                  {printers.map((p, idx) => (
-                     <option key={idx} value={p.name}>{p.name}</option>
-                  ))}
-                </select>
-             </div>
-             )}
+          <section className="config-card-panel white-card">
+            <div className="card-header-with-icon">
+              <Printer size={20} className="blue-icon" />
+              <h3 className="card-header-text">Printer Settings</h3>
+            </div>
 
-            <div className="form-item-row">
-              <label className="form-label-bold">Auto-Accept Jobs</label>
-              <div className="toggle-switch-container">
-                <input 
-                  type="checkbox" 
-                  id="auto-accept" 
-                  checked={config.auto_accept_jobs}
-                  onChange={(e) => handleChange('auto_accept_jobs', e.target.checked)} 
-                />
-                <label htmlFor="auto-accept" className="toggle-slider"></label>
+            <div className="config-form">
+              {config.has_bw_printer && (
+                <div className="form-item-row no-border">
+                  <label className="form-label-bold">B&W Printing Device</label>
+                  <select
+                    className="standard-styled-input select-compact"
+                    value={config.bw_printer}
+                    onChange={(e) => handleChange('bw_printer', e.target.value)}
+                  >
+                    <option value="">Select B&W Printer...</option>
+                    {printers.map((p, idx) => (
+                      <option key={idx} value={p.name}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {config.has_color_printer && (
+                <div className="form-item-row">
+                  <label className="form-label-bold">Color Printing Device</label>
+                  <select
+                    className="standard-styled-input select-compact"
+                    value={config.color_printer}
+                    onChange={(e) => handleChange('color_printer', e.target.value)}
+                  >
+                    <option value="">Select Color Printer...</option>
+                    {printers.map((p, idx) => (
+                      <option key={idx} value={p.name}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="form-item-row">
+                <label className="form-label-bold">Auto-Accept Jobs</label>
+                <div className="toggle-switch-container">
+                  <input
+                    type="checkbox"
+                    id="auto-accept"
+                    checked={config.auto_accept_jobs}
+                    onChange={(e) => handleChange('auto_accept_jobs', e.target.checked)}
+                  />
+                  <label htmlFor="auto-accept" className="toggle-slider"></label>
+                </div>
+              </div>
+
+              {config.has_bw_printer && (
+                <div className="form-item-row">
+                  <label className="form-label-bold">B&W Price per page</label>
+                  <div className="currency-input-field">
+                    <span className="currency-symbol">₹</span>
+                    <input
+                      type="number"
+                      value={config.bw_price}
+                      step="0.5"
+                      className="clean-input"
+                      onChange={(e) => handleChange('bw_price', parseFloat(e.target.value))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {config.has_color_printer && (
+                <div className="form-item-row">
+                  <label className="form-label-bold">Color Price per page</label>
+                  <div className="currency-input-field">
+                    <span className="currency-symbol">₹</span>
+                    <input
+                      type="number"
+                      value={config.color_price}
+                      step="1"
+                      className="clean-input"
+                      onChange={(e) => handleChange('color_price', parseFloat(e.target.value))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="tip-box">
+                <Info size={16} className="info-icon" />
+                <p>Recommended price for standard A4 is ₹5.00 - ₹10.00</p>
               </div>
             </div>
-
-             {config.has_bw_printer && (
-             <div className="form-item-row">
-               <label className="form-label-bold">B&W Price per page</label>
-               <div className="currency-input-field">
-                 <span className="currency-symbol">₹</span>
-                 <input 
-                   type="number" 
-                   value={config.bw_price}
-                   step="0.5" 
-                   className="clean-input" 
-                   onChange={(e) => handleChange('bw_price', parseFloat(e.target.value))}
-                 />
-               </div>
-             </div>
-             )}
- 
-             {config.has_color_printer && (
-             <div className="form-item-row">
-               <label className="form-label-bold">Color Price per page</label>
-               <div className="currency-input-field">
-                 <span className="currency-symbol">₹</span>
-                 <input 
-                   type="number" 
-                   value={config.color_price}
-                   step="1" 
-                   className="clean-input" 
-                   onChange={(e) => handleChange('color_price', parseFloat(e.target.value))}
-                 />
-               </div>
-             </div>
-             )}
-            
-            <div className="tip-box">
-               <Info size={16} className="info-icon" />
-               <p>Recommended price for standard A4 is ₹5.00 - ₹10.00</p>
-            </div>
-          </div>
-        </section>
+          </section>
         )}
 
         {(activeTab === 'upi') && (
-        <section className="config-card-panel white-card">
-          <div className="card-header-with-icon">
-            <Wallet size={20} className="green-icon" />
-            <h3 className="card-header-text">UPI Payment Setup</h3>
-          </div>
-
-          <div className="config-form">
-            <div className="form-item-row">
-              <label className="form-label-bold">Enable UPI Payments</label>
-              <div className="toggle-switch-container">
-                <input 
-                  type="checkbox" 
-                  id="enable-upi" 
-                  checked={config.enable_upi}
-                  onChange={(e) => handleChange('enable_upi', e.target.checked)}
-                />
-                <label htmlFor="enable-upi" className="toggle-slider"></label>
-              </div>
+          <section className="config-card-panel white-card">
+            <div className="card-header-with-icon">
+              <Wallet size={20} className="green-icon" />
+              <h3 className="card-header-text">UPI Payment Setup</h3>
             </div>
 
-            <div className="form-item-row horizontal-input-group">
-               <label className="form-label-bold">UPI ID (for payments)</label>
-               <input 
-                  type="text" 
-                  placeholder="e.g. example@upi" 
-                  className="standard-styled-input" 
+            <div className="config-form">
+              <div className="form-item-row">
+                <label className="form-label-bold">Enable UPI Payments</label>
+                <div className="toggle-switch-container">
+                  <input
+                    type="checkbox"
+                    id="enable-upi"
+                    checked={config.enable_upi}
+                    onChange={(e) => handleChange('enable_upi', e.target.checked)}
+                  />
+                  <label htmlFor="enable-upi" className="toggle-slider"></label>
+                </div>
+              </div>
+
+              <div className="form-item-row horizontal-input-group">
+                <label className="form-label-bold">UPI ID (for payments)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. example@upi"
+                  className="standard-styled-input"
                   value={config.upi_id}
                   onChange={(e) => handleChange('upi_id', e.target.value)}
                 />
-            </div>
+              </div>
 
-            <div className="form-item-row horizontal-input-group">
-              <label className="form-label-bold">Merchant Name (Shop Name)</label>
-              <input 
-                type="text" 
-                placeholder="e.g. XYZ PRINT" 
-                className="standard-styled-input" 
-                value={config.shop_name}
-                onChange={(e) => handleChange('shop_name', e.target.value)}
-              />
-            </div>
-
-            <div className="form-item-row">
-              <label className="form-label-bold">Min. Amount</label>
-               <div className="currency-input-field small-input">
-                <span className="currency-symbol">₹</span>
-                <input 
-                  type="number" 
-                  value={config.min_amount}
-                  className="clean-input" 
-                  onChange={(e) => handleChange('min_amount', parseFloat(e.target.value))}
+              <div className="form-item-row horizontal-input-group">
+                <label className="form-label-bold">Merchant Name (Shop Name)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. XYZ PRINT"
+                  className="standard-styled-input"
+                  value={config.shop_name}
+                  onChange={(e) => handleChange('shop_name', e.target.value)}
                 />
               </div>
+
+              <div className="form-item-row">
+                <label className="form-label-bold">Min. Amount</label>
+                <div className="currency-input-field small-input">
+                  <span className="currency-symbol">₹</span>
+                  <input
+                    type="number"
+                    value={config.min_amount}
+                    className="clean-input"
+                    onChange={(e) => handleChange('min_amount', parseFloat(e.target.value))}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
         )}
       </div>
 

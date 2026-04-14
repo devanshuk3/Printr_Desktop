@@ -133,15 +133,15 @@ const CODVerification: React.FC = () => {
           {activities.length === 0 && <p style={{ color: '#888', textAlign: 'center', marginTop: '20px' }}>No recent activity</p>}
           {activities.map((act, i) => (
             <div key={i} className="timeline-item">
-              <div className={`timeline-dot ${act.status === 'printed' ? 'verified' : 'rejected'}`}></div>
+              <div className={`timeline-dot ${act.status === 'printed' ? 'verified' : act.status === 'cancelled' ? 'cancelled' : 'rejected'}`}></div>
               <div className="timeline-content">
                 <div className="timeline-top">
                   <span className="log-order">#{act.id}</span>
                   <span className="log-time">{formatTime(act.created_at)}</span>
                 </div>
                 <div className="timeline-bottom">
-                  <span className={`log-type ${act.status === 'printed' ? 'verified' : 'rejected'}`}>
-                    {act.status === 'printed' ? 'Verified' : 'Rejected'}
+                  <span className={`log-type ${act.status === 'printed' ? 'verified' : act.status === 'cancelled' ? 'cancelled' : 'rejected'}`}>
+                    {act.status === 'printed' ? 'Verified' : act.status === 'cancelled' ? 'Cancelled' : 'Rejected'}
                   </span>
                   <span className="log-customer">{act.customer_name || 'Anonymous'}</span>
                 </div>
@@ -295,6 +295,7 @@ const CODVerification: React.FC = () => {
         }
         .timeline-dot.verified { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
         .timeline-dot.rejected { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+        .timeline-dot.cancelled { background: #94a3b8; box-shadow: 0 0 8px #94a3b8; }
 
         .timeline-content { flex: 1; border-radius: 12px; padding: 12px; background: rgba(255, 255, 255, 0.05); }
 
@@ -306,6 +307,7 @@ const CODVerification: React.FC = () => {
         .log-type { font-size: 11px; font-weight: 700; text-transform: uppercase; }
         .log-type.verified { color: var(--accent-green); }
         .log-type.rejected { color: var(--accent-red); }
+        .log-type.cancelled { color: #94a3b8; }
         .log-customer { font-size: 12px; color: var(--text-secondary); }
       `}</style>
     </div>
