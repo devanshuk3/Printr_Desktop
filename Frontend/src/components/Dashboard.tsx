@@ -5,8 +5,7 @@ import {
   X, 
   RefreshCcw,
   Loader2,
-  CheckCircle,
-  Wallet
+  CheckCircle
 } from 'lucide-react';
 import logo from '../assets/Printr_Logo_transparent_White.png';
 
@@ -33,7 +32,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
-  const [offset, setOffset] = useState(0); // Legacy support kept for now
+
   const [total, setTotal] = useState(0);
   const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
   const [pageIndex, setPageIndex] = useState(0);
@@ -89,20 +88,28 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
   const [prices, setPrices] = useState({ bw: 5, color: 10 });
 
+  const [vendorConfig, setVendorConfig] = useState({ bw_printer: '', color_printer: '' });
+  const [jobPrefs, setJobPrefs] = useState<Record<string, any>>({});
+  const [isPrefLoading, setIsPrefLoading] = useState<Record<string, boolean>>({});
+
   const fetchVendorPrices = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/vendors/settings/me`, {
         headers: getHeaders()
       });
       if (response.ok) {
-        const data = await response.json();
+        console.info('[Sync] Fetched Vendor Config:', data);
         setPrices({
           bw: parseFloat(data.bw_price) || 5,
           color: parseFloat(data.color_price) || 10
         });
+        setVendorConfig({
+          bw_printer: data.bw_printer || '',
+          color_printer: data.color_printer || ''
+        });
       }
     } catch (err) {
-      console.error('Failed to fetch prices:', err);
+      console.error('Failed to fetch config:', err);
     }
   };
 
@@ -129,12 +136,49 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    fetchVendorPrices(); // Ensure settings are fresh
     fetchQueue();
-  };                
+  };
+
+  const fetchJobPreferences = async (job: PrintJob) => {
+    const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
+    if (!key || jobPrefs[key]) return;
+
+    const parts = key.split('_');
+    if (parts.length < 2) return;
+
+    const prefKey = `job_preferences_${parts[0]}_${parts[1]}.json`;
+    setIsPrefLoading(prev => ({ ...prev, [key]: true }));
+
+    try {
+      const resp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${prefKey}`, {
+        headers: getHeaders()
+      });
+      if (resp.ok) {
+        const prefs = await resp.json();
+        setJobPrefs(prev => ({ ...prev, [key]: prefs }));
+      }
+    } catch (e) {
+      // Potentially no JSON file for this job
+    } finally {
+      setIsPrefLoading(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  useEffect(() => {
+    // If we have queue data, try to fetch prefs for new items
+    queueData.forEach(job => {
+      const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
+      if (key && !jobPrefs[key] && !isPrefLoading[key]) {
+        fetchJobPreferences(job);
+      }
+    });
+  }, [queueData]);
 
   const handleViewOrPrint = async (job: PrintJob, isPrint: boolean) => {
     const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
     const name = job.file_name || (job as any).fileName || 'document';
+    const isColor = job.is_color || false;
 
     if (!key) {
         alert("Operation aborted: Identifer (file_key) is missing for this record.");
@@ -171,14 +215,62 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       const path = (window as any).require('path');
       const fs = (window as any).require('fs');
       const os = (window as any).require('os');
-      const { shell } = (window as any).require('electron');
+      const { shell, ipcRenderer } = (window as any).require('electron');
 
        const tempPath = path.join(os.tmpdir(), `printr_${name}`);
       fs.writeFileSync(tempPath, buffer);
-      shell.openPath(tempPath);
 
-      // If it was a print action, also mark as printed in DB
-      if (isPrint) {
+      if (!isPrint) {
+        shell.openPath(tempPath);
+      } else {
+        // 4. Fetch JSON Preferences for final print command
+        let printOptions = {
+          copies: 1,
+          sides: 'one-sided' as 'one-sided' | 'two-sided-long-edge' | 'two-sided-short-edge',
+          isColor: isColor
+        };
+
+        const parts = key.split('_');
+        if (parts.length >= 2) {
+          const prefKey = `job_preferences_${parts[0]}_${parts[1]}.json`;
+          try {
+            const prefResp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${prefKey}`, {
+              headers: getHeaders()
+            });
+            if (prefResp.ok) {
+              const prefs = await prefResp.json();
+              printOptions.copies = parseInt(prefs.copies) || 1;
+              if (prefs.doubleSided === 'YES') {
+                printOptions.sides = 'two-sided-long-edge';
+              }
+              if (prefs.colorMode === 'Colored') {
+                printOptions.isColor = true;
+              } else if (prefs.colorMode === 'Black & White') {
+                printOptions.isColor = false;
+              }
+            }
+          } catch (e) { console.warn("Could not load preference JSON, using defaults"); }
+        }
+
+        const printerName = printOptions.isColor ? vendorConfig.color_printer : vendorConfig.bw_printer;
+        
+        if (!printerName) {
+           throw new Error(`No ${printOptions.isColor ? 'Color' : 'B&W'} printer configured. Please configure it in settings.`);
+        }
+
+        const printResult = await ipcRenderer.invoke('print-file', {
+           filePath: tempPath,
+           printerName,
+           isColor: printOptions.isColor,
+           copies: printOptions.copies,
+           sides: printOptions.sides
+        });
+
+        if (!printResult.success) {
+           throw new Error(printResult.error || "Failed to issue print command.");
+        }
+
+        // Mark as printed in DB
         await fetch(`${API_BASE_URL}/api/vendors/printed-legacy`, {
           method: 'POST',
           headers: getHeaders(),
@@ -359,6 +451,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                       <th>FILE NAME</th>
                       <th>SENDER INFO</th>
                       <th>PAGES</th>
+                      <th>PREFERENCES</th>
                       <th>EST. COST</th>
                       <th>STATUS</th>
                       <th className="text-right">ACTIONS</th>
@@ -381,6 +474,31 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                         </td>
                         <td className="pages-cell">
                           <span className="page-count-badge">{row.page_count || (row as any).pageCount || (row as any).pages}</span>
+                        </td>
+                        <td className="preferences-cell">
+                          {(() => {
+                            const key = row.file_key || (row as any).fileKey || row.file_name || (row as any).fileName;
+                            const prefs = jobPrefs[key];
+                            if (isPrefLoading[key]) return <span className="pref-loading">Loading...</span>;
+                            if (!prefs) return <span className={`status-pill ${row.is_color ? 'color' : 'bw'}`}>{row.is_color ? 'Color' : 'B&W'}</span>;
+                            
+                            return (
+                              <div className="pref-details-box">
+                                <div className="pref-mode">
+                                  <span className={`status-pill ${prefs.colorMode === 'Colored' || row.is_color ? 'color' : 'bw'}`}>
+                                    {prefs.colorMode === 'Colored' || row.is_color ? 'Color' : 'B&W'}
+                                  </span>
+                                  {parseInt(prefs.copies) > 1 && <span className="copies-badge">x{prefs.copies}</span>}
+                                </div>
+                                <div className="pref-meta">
+                                  <span>{prefs.layout || 'Port.'}</span>
+                                  <span>•</span>
+                                  <span>{prefs.doubleSided === 'YES' ? '2-Sided' : '1-Sided'}</span>
+                                  {prefs.pageSelection === 'Custom' && <span className="range-info">[{prefs.customRange}]</span>}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="cost-cell">
                           <span className="cost-value">
@@ -749,6 +867,8 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
         .status-pill.pending { background: #FFF4E6; color: #D9480F; }
         .status-pill.printed { background: #EBFBEE; color: #2B8A3E; }
+        .status-pill.color { background: #F3E8FF; color: #7E22CE; }
+        .status-pill.bw { background: #F1F5F9; color: #475569; }
 
         .actions-cell-premium { text-align: right; }
         .action-button-group {
@@ -807,6 +927,15 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
         .text-right { text-align: right; }
+        .pref-loading { font-size: 11px; color: #888; font-style: italic; }
+        .pref-details-box { display: flex; flex-direction: column; gap: 4px; }
+        .pref-mode { display: flex; align-items: center; gap: 8px; }
+        .copies-badge { 
+          background: #111; color: white; padding: 2px 6px; border-radius: 4px; 
+          font-size: 10px; font-weight: 800; transform: translateY(-1px);
+        }
+        .pref-meta { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #666; font-weight: 500; }
+        .range-info { color: #1a73e8; font-weight: 700; }
       `}</style>
     </div>
   );

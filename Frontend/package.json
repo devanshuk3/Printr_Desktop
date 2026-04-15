@@ -17,13 +17,15 @@
     "concurrently": "^9.2.1",
     "electron": "^41.0.4",
     "typescript": "~5.9.3",
-    "vite": "^8.0.1",
+    "vite": "^5.4.11",
     "wait-on": "^9.0.4"
   },
   "dependencies": {
     "electron-is-dev": "^3.0.1",
     "lucide-react": "^1.7.0",
+    "pdf-to-printer": "^5.7.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "unix-print": "^1.3.2"
   }
 }
