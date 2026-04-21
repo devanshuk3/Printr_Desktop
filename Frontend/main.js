@@ -64,7 +64,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      webSecurity: true,
+      webSecurity: false,
     },
   });
 
@@ -80,7 +80,13 @@ function createWindow() {
 }
 
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-  if (url.startsWith('https://printr-desktop1.onrender.com') || url.startsWith('http://localhost:5000')) {
+  const allowed = [
+    'localhost',
+    'onrender.com',
+    'cloudflarestorage.com'
+  ];
+  
+  if (allowed.some(domain => url.includes(domain))) {
     event.preventDefault();
     callback(true);
   } else {
@@ -90,10 +96,15 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 
 app.whenReady().then(() => {
   session.defaultSession.setCertificateVerifyProc((request, callback) => {
-    if (request.hostname === 'printr-desktop1.onrender.com' || request.hostname === 'localhost') {
-      callback(0);
+    const { hostname } = request;
+    if (
+      hostname === 'localhost' || 
+      hostname.includes('onrender.com') || 
+      hostname.includes('cloudflarestorage.com')
+    ) {
+      callback(0); // Trust
     } else {
-      callback(-3);
+      callback(-3); // Default behavior
     }
   });
 

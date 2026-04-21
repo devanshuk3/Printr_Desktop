@@ -31,6 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(false);
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
 
   const [total, setTotal] = useState(0);
@@ -66,6 +67,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         setTotal(data.total || data.files.length);
         setNextCursor(data.nextCursor);
         setConnectionError(null);
+        setIsOnline(true);
         if (data.files.length > 0) {
             console.log('Sample Data Structure (First Entry):');
             console.dir(data.files[0]);
@@ -80,6 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         console.error('Error fetching queue:', error);
         setConnectionError(`Failed to load queue: ${error.message}`);
       }
+      setIsOnline(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -98,6 +101,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         headers: getHeaders()
       });
       if (response.ok) {
+        const data = await response.json();
         console.info('[Sync] Fetched Vendor Config:', data);
         setPrices({
           bw: parseFloat(data.bw_price) || 5,
@@ -107,9 +111,11 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
           bw_printer: data.bw_printer || '',
           color_printer: data.color_printer || ''
         });
+        setIsOnline(true);
       }
     } catch (err) {
       console.error('Failed to fetch config:', err);
+      setIsOnline(false);
     }
   };
 
@@ -147,11 +153,11 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     const parts = key.split('_');
     if (parts.length < 2) return;
 
-    const prefKey = `job_preferences_${parts[0]}_${parts[1]}.json`;
+    const prefKey = `${parts[0]}/job_preferences_${parts[0]}_${parts[1]}.json`;
     setIsPrefLoading(prev => ({ ...prev, [key]: true }));
 
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${prefKey}`, {
+      const resp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${encodeURIComponent(prefKey)}`, {
         headers: getHeaders()
       });
       if (resp.ok) {
@@ -196,6 +202,8 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
           file_key: key,
           id: job.id 
         })
+      }).catch(err => {
+        throw new Error(`Backend unreachable: ${err.message}`);
       });
       
       const data = await response.json();
@@ -203,10 +211,15 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         throw new Error(data.message || 'Failed to get secure link from backend.');
       }
 
+      console.info('[Dashboard] Obtained secure download link:', data.downloadUrl);
+
       // Download the actual file from Cloudflare
-      const fileResp = await fetch(data.downloadUrl);
+      const fileResp = await fetch(data.downloadUrl).catch(err => {
+        throw new Error(`Cloudflare download failed: ${err.message}. This might be a CORS or network issue.`);
+      });
+      
       if (!fileResp.ok) {
-        throw new Error('Cloudflare R2 Access Denied. Your secure link was rejected by the storage server.');
+        throw new Error(`Cloudflare R2 Access Denied (${fileResp.status}). Your secure link was rejected by the storage server.`);
       }
 
       const arrayBuffer = await fileResp.arrayBuffer();
@@ -232,10 +245,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
         const parts = key.split('_');
         if (parts.length >= 2) {
-          const prefKey = `job_preferences_${parts[0]}_${parts[1]}.json`;
+          const prefKey = `${parts[0]}/job_preferences_${parts[0]}_${parts[1]}.json`;
           try {
-            const prefResp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${prefKey}`, {
+            const prefResp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${encodeURIComponent(prefKey)}`, {
               headers: getHeaders()
+            }).catch(err => {
+              throw new Error(`Preferences fetch failed: ${err.message}`);
             });
             if (prefResp.ok) {
               const prefs = await prefResp.json();
@@ -249,13 +264,15 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                 printOptions.isColor = false;
               }
             }
-          } catch (e) { console.warn("Could not load preference JSON, using defaults"); }
+          } catch (e) { console.warn("Could not load preference JSON, using defaults:", e); }
         }
 
         const printerName = printOptions.isColor ? vendorConfig.color_printer : vendorConfig.bw_printer;
         
         if (!printerName) {
-           throw new Error(`No ${printOptions.isColor ? 'Color' : 'B&W'} printer configured. Please configure it in settings.`);
+           console.warn(`[Printer] No ${printOptions.isColor ? 'Color' : 'B&W'} printer configured. Falling back to system dialog.`);
+           shell.openPath(tempPath);
+           return;
         }
 
         const printResult = await ipcRenderer.invoke('print-file', {
@@ -278,6 +295,9 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
             file_key: key,
             id: job.id
           })
+        }).catch(err => {
+          console.error("Failed to mark as printed:", err);
+          // Don't throw here to avoid alerting if the print itself succeeded
         });
         setQueueData(prev => prev.map(item => 
           item.id === job.id ? { ...item, status: 'Printed' } : item
@@ -377,16 +397,16 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
             </div>
           </div>
 
-          <div className="stat-card glass-glow green">
+          <div className={`stat-card glass-glow ${isOnline ? 'green' : 'red'}`}>
             <div className="stat-card-inner">
                <div className="stat-card-header">
                  <div className="stat-icon-box">
-                   <CheckCircle size={20} />
+                   {isOnline ? <CheckCircle size={20} /> : <X size={20} />}
                  </div>
                  <span>SYSTEM STATUS</span>
                </div>
-               <div className="stat-card-value">Online</div>
-               <div className="stat-card-footer">System connection is active</div>
+               <div className="stat-card-value">{isOnline ? 'Online' : 'Offline'}</div>
+               <div className="stat-card-footer">{isOnline ? 'System connection is active' : 'Backend is unreachable'}</div>
             </div>
           </div> 
 
@@ -707,6 +727,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
         .stat-card.blue .stat-icon-box { background: #EBF2FF; color: #3B82F6; }
         .stat-card.green .stat-icon-box { background: #E6FFFA; color: #10B981; }
+        .stat-card.red .stat-icon-box { background: #FFEBEB; color: #EF4444; }
         .stat-card.gold .stat-icon-box { background: #FFF9E6; color: #F59E0B; }
         .gold-icon { color: #F59E0B; }
 

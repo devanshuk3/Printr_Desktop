@@ -51,6 +51,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         };
 
     try {
+      console.log(`[Auth] Attempting ${isLogin ? 'Login' : 'Register'} at: ${API_BASE_URL}${endpoint}`);
       // Security Fix Applied: Verified fetch headers
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
