@@ -17,37 +17,48 @@ ipcMain.handle('get-printers', async (event) => {
   }
 });
 
-import { print } from 'unix-print';
+import os from 'os';
 
 ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, copies, sides }) => {
   try {
-    const options = [];
-    
-    // 1. Color Management
-    if (isColor) {
-      options.push('-o ColorModel=Color');
-    } else {
-      options.push('-o ColorModel=Gray');
-    }
-
-    // 2. Copies
-    if (copies && copies > 1) {
-      options.push(`-n ${copies}`);
-    }
-
-    // 3. Duplexing (sides)
-    if (sides) {
-      options.push(`-o sides=${sides}`);
-    }
-
-    // Attempt to print via unix-print
-    // Trim printer name to avoid shell errors
     const targetPrinter = (printerName || '').trim();
     if (!targetPrinter) throw new Error("No printer name provided to native print spooler.");
 
-    console.info(`[PrintJob] Dispatching to ${targetPrinter} | Copies: ${copies || 1} | Sides: ${sides || 'one-sided'}`);
+    console.info(`[PrintJob] Dispatching to ${targetPrinter} | Copies: ${copies || 1} | Sides: ${sides || 'one-sided'} | Color: ${isColor}`);
     
-    await print(filePath, targetPrinter, options);
+    if (os.platform() === 'win32') {
+      const ptp = (await import('pdf-to-printer')).default;
+      const ptpOptions = {
+        printer: targetPrinter,
+        copies: copies && copies > 1 ? copies : 1,
+      };
+      // For Windows, color and duplex are usually set on printer default preferences or require more complex driver-level APIs.
+      // pdf-to-printer provides basic printing functionality.
+      await ptp.print(filePath, ptpOptions);
+    } else {
+      const { print } = await import('unix-print');
+      const options = [];
+      
+      // 1. Color Management
+      if (isColor) {
+        options.push('-o ColorModel=Color');
+      } else {
+        options.push('-o ColorModel=Gray');
+      }
+
+      // 2. Copies
+      if (copies && copies > 1) {
+        options.push(`-n ${copies}`);
+      }
+
+      // 3. Duplexing (sides)
+      if (sides) {
+        options.push(`-o sides=${sides}`);
+      }
+      
+      await print(filePath, targetPrinter, options);
+    }
+
     return { success: true };
   } catch (err) {
     console.error("IPC print-file error:", err);
