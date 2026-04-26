@@ -18,6 +18,30 @@ ipcMain.handle('get-printers', async (event) => {
 });
 
 import os from 'os';
+import fs from 'fs';
+import { PDFDocument } from 'pdf-lib';
+
+function getFileType(filePath) {
+  const buffer = Buffer.alloc(4);
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buffer, 0, 4, 0);
+  } catch (e) {
+    return 'unknown';
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+  
+  if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+    return 'pdf';
+  } else if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+    return 'png';
+  } else if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return 'jpg';
+  }
+  return 'unknown';
+}
 
 ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, copies, sides }) => {
   try {
@@ -26,6 +50,52 @@ ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, cop
 
     console.info(`[PrintJob] Dispatching to ${targetPrinter} | Copies: ${copies || 1} | Sides: ${sides || 'one-sided'} | Color: ${isColor}`);
     
+    let finalFilePath = filePath;
+    const fileType = getFileType(filePath);
+
+    if (fileType === 'png' || fileType === 'jpg') {
+      console.info(`[PrintJob] Image detected (${fileType}), converting to PDF...`);
+      const imageBytes = fs.readFileSync(filePath);
+      const pdfDoc = await PDFDocument.create();
+      let image;
+      if (fileType === 'png') {
+        image = await pdfDoc.embedPng(imageBytes);
+      } else {
+        image = await pdfDoc.embedJpg(imageBytes);
+      }
+      
+      const page = pdfDoc.addPage([image.width, image.height]);
+      page.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: image.width,
+        height: image.height,
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      finalFilePath = `${filePath}.pdf`;
+      fs.writeFileSync(finalFilePath, pdfBytes);
+      console.info(`[PrintJob] Successfully converted to PDF: ${finalFilePath}`);
+    } else if (fileType === 'unknown') {
+      const ext = path.extname(filePath).toLowerCase();
+      if (['.png', '.jpg', '.jpeg'].includes(ext)) {
+         console.info(`[PrintJob] Image extension detected, converting to PDF...`);
+         const imageBytes = fs.readFileSync(filePath);
+         const pdfDoc = await PDFDocument.create();
+         let image;
+         if (ext === '.png') {
+           image = await pdfDoc.embedPng(imageBytes);
+         } else {
+           image = await pdfDoc.embedJpg(imageBytes);
+         }
+         const page = pdfDoc.addPage([image.width, image.height]);
+         page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+         const pdfBytes = await pdfDoc.save();
+         finalFilePath = `${filePath}.pdf`;
+         fs.writeFileSync(finalFilePath, pdfBytes);
+      }
+    }
+
     if (os.platform() === 'win32') {
       const ptp = (await import('pdf-to-printer')).default;
       const ptpOptions = {
@@ -34,7 +104,7 @@ ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, cop
       };
       // For Windows, color and duplex are usually set on printer default preferences or require more complex driver-level APIs.
       // pdf-to-printer provides basic printing functionality.
-      await ptp.print(filePath, ptpOptions);
+      await ptp.print(finalFilePath, ptpOptions);
     } else {
       const { print } = await import('unix-print');
       const options = [];
@@ -56,7 +126,7 @@ ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, cop
         options.push(`-o sides=${sides}`);
       }
       
-      await print(filePath, targetPrinter, options);
+      await print(finalFilePath, targetPrinter, options);
     }
 
     return { success: true };

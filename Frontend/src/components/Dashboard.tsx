@@ -625,7 +625,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
         .dashboard-content {
           flex: 1;
-          padding: 40px 60px;
+          padding: 30px 40px;
           overflow-y: auto;
           max-width: 1400px;
           margin: 0 auto;
@@ -787,7 +787,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
         .queue-table-premium th {
           text-align: left;
-          padding: 24px 40px;
+          padding: 20px 24px;
           font-size: 11px;
           font-weight: 800;
           color: #AAA;
@@ -803,7 +803,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         .queue-row:hover { background: #F9FBFF; }
         .queue-row:last-child { border-bottom: none; }
 
-        .queue-row td { padding: 24px 40px; }
+        .queue-row td { padding: 20px 24px; }
         
         .pagination-bar {
           display: flex;
@@ -891,11 +891,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         .status-pill.color { background: #F3E8FF; color: #7E22CE; }
         .status-pill.bw { background: #F1F5F9; color: #475569; }
 
-        .actions-cell-premium { text-align: right; }
+        .actions-cell-premium { text-align: right; min-width: 160px; }
         .action-button-group {
           display: flex;
           gap: 8px;
           justify-content: flex-end;
+          white-space: nowrap;
         }
 
         .icon-action-btn {
