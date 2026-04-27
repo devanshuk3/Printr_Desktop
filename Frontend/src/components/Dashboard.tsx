@@ -528,7 +528,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                           </span>
                         </td>
                         <td>
-                          <span className={`status-pill ${row.status || 'pending'}`}>
+                          <span className={`status-pill ${(row.status || 'pending').toLowerCase()}`}>
                             {row.status || 'pending'}
                           </span>
                         </td>
@@ -890,6 +890,8 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
         .status-pill.pending { background: #FFF4E6; color: #D9480F; }
         .status-pill.printed { background: #EBFBEE; color: #2B8A3E; }
+        .status-pill.cancelled { background: #FFF5F5; color: #E03131; }
+        .status-pill.failed { background: #FFF5F5; color: #E03131; }
         .status-pill.color { background: #F3E8FF; color: #7E22CE; }
         .status-pill.bw { background: #F1F5F9; color: #475569; }
 
