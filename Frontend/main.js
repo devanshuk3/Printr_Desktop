@@ -97,14 +97,25 @@ ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, cop
     }
 
     if (os.platform() === 'win32') {
-      const ptp = (await import('pdf-to-printer')).default;
+      const ptpModule = await import('pdf-to-printer');
+      const ptp = ptpModule.default || ptpModule;
+      
       const ptpOptions = {
         printer: targetPrinter,
-        copies: copies && copies > 1 ? copies : 1,
+        copies: Number(copies) || 1,
       };
-      // For Windows, color and duplex are usually set on printer default preferences or require more complex driver-level APIs.
+      
+      console.info(`[Printer] Windows Print Spooler options (JSON):`, JSON.stringify(ptpOptions));
+      
       // pdf-to-printer provides basic printing functionality.
-      await ptp.print(finalFilePath, ptpOptions);
+      if (typeof ptp.print === 'function') {
+        await ptp.print(finalFilePath, ptpOptions);
+      } else if (typeof ptp === 'function') {
+        // Fallback if the default export itself is the print function
+        await ptp(finalFilePath, ptpOptions);
+      } else {
+        throw new Error("Could not find print function in pdf-to-printer module");
+      }
     } else {
       const { print } = await import('unix-print');
       const options = [];

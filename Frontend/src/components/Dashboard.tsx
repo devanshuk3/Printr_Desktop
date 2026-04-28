@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Printer, 
   Eye, 
@@ -20,6 +20,8 @@ interface PrintJob {
   page_count?: number;
   is_color?: boolean;
   status: string;
+  copies?: number;
+  isPrefFetched?: boolean;
 }
 
 interface DashboardProps {
@@ -39,6 +41,13 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   const [pageIndex, setPageIndex] = useState(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const limit = 20;
+
+  // Refs to always access latest state inside intervals/closures
+  const queueDataRef = useRef<PrintJob[]>([]);
+  const jobPrefsRef = useRef<Record<string, any>>({});
+  
+  // Track downloaded temp files for cleanup after 1 hour
+  const tempFilesRef = useRef<{ path: string; createdAt: number }[]>([]);
 
   const fetchQueue = async () => {
     const controller = new AbortController();
@@ -63,15 +72,38 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
       const data = await resp.json();
       if (data.files) {
-        setQueueData(data.files);
+        // Hydrate new data with existing local state (copies, fetched status)
+        // Use refs to avoid stale closure from setInterval
+        const currentQueueMap = new Map(queueDataRef.current.map(item => [item.id, item]));
+        const currentJobPrefs = jobPrefsRef.current;
+        
+        const hydratedFiles = data.files.map((newJob: any) => {
+          const existing = currentQueueMap.get(newJob.id);
+          const key = newJob.file_key || newJob.file_name;
+          
+          let copies = 1;
+
+          if (existing) {
+            copies = existing.copies || 1;
+          }
+          
+          // Check jobPrefs cache for the latest R2-fetched preferences
+          if (key && currentJobPrefs[key]) {
+            copies = parseInt(currentJobPrefs[key].copies) || copies;
+          }
+          
+          return {
+            ...newJob,
+            copies: copies,
+            isPrefFetched: existing ? (existing.isPrefFetched || false) : false
+          };
+        });
+
+        setQueueData(hydratedFiles);
         setTotal(data.total || data.files.length);
         setNextCursor(data.nextCursor);
         setConnectionError(null);
         setIsOnline(true);
-        if (data.files.length > 0) {
-            console.log('Sample Data Structure (First Entry):');
-            console.dir(data.files[0]);
-        }
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -94,6 +126,10 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   const [vendorConfig, setVendorConfig] = useState({ bw_printer: '', color_printer: '' });
   const [jobPrefs, setJobPrefs] = useState<Record<string, any>>({});
   const [isPrefLoading, setIsPrefLoading] = useState<Record<string, boolean>>({});
+
+  // Keep refs in sync with latest state
+  useEffect(() => { queueDataRef.current = queueData; }, [queueData]);
+  useEffect(() => { jobPrefsRef.current = jobPrefs; }, [jobPrefs]);
 
   const fetchVendorPrices = async () => {
     try {
@@ -131,6 +167,58 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     return () => clearInterval(interval);
   }, [vendorId, pageIndex, pollInterval]);
 
+  // Temp file cleanup: delete printr_* files older than 1 hour every 10 minutes
+  useEffect(() => {
+    const fs = (window as any).require?.('fs');
+    const path = (window as any).require?.('path');
+    const os = (window as any).require?.('os');
+    if (!fs || !path || !os) return;
+
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const tempDir = os.tmpdir();
+
+    // On startup, scan for leftover printr_* files from previous sessions
+    try {
+      const existingFiles = fs.readdirSync(tempDir).filter((f: string) => f.startsWith('printr_'));
+      for (const fileName of existingFiles) {
+        const filePath = path.join(tempDir, fileName);
+        try {
+          const stats = fs.statSync(filePath);
+          tempFilesRef.current.push({ path: filePath, createdAt: stats.mtimeMs });
+        } catch { /* file may have been removed */ }
+      }
+      if (existingFiles.length > 0) {
+        console.log(`[Cleanup] Found ${existingFiles.length} existing printr_* temp files to track.`);
+      }
+    } catch { /* temp dir read failed, non-critical */ }
+
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const remaining: { path: string; createdAt: number }[] = [];
+
+      for (const entry of tempFilesRef.current) {
+        if (now - entry.createdAt > ONE_HOUR_MS) {
+          try {
+            if (fs.existsSync(entry.path)) {
+              fs.unlinkSync(entry.path);
+              console.log(`[Cleanup] Deleted temp file: ${entry.path}`);
+            }
+          } catch (e: any) {
+            // File may be locked by a viewer; keep it for next cycle
+            console.warn(`[Cleanup] Could not delete ${entry.path}: ${e.message}`);
+            remaining.push(entry);
+          }
+        } else {
+          remaining.push(entry);
+        }
+      }
+
+      tempFilesRef.current = remaining;
+    }, 10 * 60 * 1000); // Run every 10 minutes
+
+    return () => clearInterval(cleanupInterval);
+  }, []); // Run once on mount
+
   useEffect(() => {
     // Adaptive Polling: Slow down when idle (60s), speed up when active (20s)
     if (queueData.length === 0 && pollInterval !== 60000) {
@@ -146,40 +234,116 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     fetchQueue();
   };
 
-  const fetchJobPreferences = async (job: PrintJob) => {
-    const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
-    if (!key || jobPrefs[key]) return;
-
-    const parts = key.split('_');
-    if (parts.length < 2) return;
-
-    const prefKey = `${parts[0]}/job_preferences_${parts[0]}_${parts[1]}.json`;
-    setIsPrefLoading(prev => ({ ...prev, [key]: true }));
-
-    try {
-      const resp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${encodeURIComponent(prefKey)}`, {
-        headers: getHeaders()
-      });
-      if (resp.ok) {
-        const prefs = await resp.json();
-        setJobPrefs(prev => ({ ...prev, [key]: prefs }));
-      }
-    } catch (e) {
-      // Potentially no JSON file for this job
-    } finally {
-      setIsPrefLoading(prev => ({ ...prev, [key]: false }));
-    }
-  };
-
+  // Background preference loader: Fetch JSON from R2 for pending jobs
   useEffect(() => {
-    // If we have queue data, try to fetch prefs for new items
-    queueData.forEach(job => {
-      const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
-      if (key && !jobPrefs[key] && !isPrefLoading[key]) {
-        fetchJobPreferences(job);
+    let cancelled = false;
+
+    const fetchMissingPrefs = async () => {
+      const currentQueue = queueDataRef.current;
+      // FIX: Use case-insensitive comparison — backend stores 'pending' (lowercase)
+      const pendingJobs = currentQueue.filter(
+        job => !job.isPrefFetched && job.status?.toLowerCase() === 'pending'
+      );
+      
+      if (pendingJobs.length === 0) {
+        console.log('[R2Sync] No unfetched pending jobs to check.');
+        return;
       }
-    });
-  }, [queueData]);
+
+      console.log(`[R2Sync] Checking ${pendingJobs.length} jobs for preferences...`);
+
+      for (const job of pendingJobs) {
+        if (cancelled) return;
+
+        const key = job.file_key || job.file_name;
+        if (!key) continue;
+
+        const pathParts = key.split('/');
+        if (pathParts.length < 2) continue;
+
+        const vId = pathParts[0];
+        const fullFileName = pathParts[1];
+        
+        // Pattern 1: Direct replacement (admin127.pdf -> admin127.json)
+        let possiblePrefKeys = [
+          `${vId}/${fullFileName.replace('.pdf', '.json')}`,
+          `${vId}/job_preferences_${fullFileName.replace('.pdf', '.json')}`
+        ];
+        
+        // Pattern 2: Extracting order ID (e.g. admin127.pdf -> 127)
+        const orderIdFromFile = fullFileName.match(/\d+/)?.[0];
+        if (orderIdFromFile) {
+           possiblePrefKeys.push(`${vId}/job_preferences_${orderIdFromFile}.json`);
+        }
+
+        // Pattern 3: Username and ID split
+        if (job.sender_name) {
+           const sender = (job.sender_name || 'admin').toLowerCase().split(' ')[0];
+           possiblePrefKeys.push(`${vId}/job_preferences_${sender}_${job.id}.json`);
+        }
+
+        console.log(`[R2Sync] Job #${job.id} (${fullFileName}) — trying keys:`, possiblePrefKeys);
+
+        let found = false;
+        for (const prefKey of possiblePrefKeys) {
+          if (cancelled) return;
+          try {
+            // Step 1: Get signed download URL from backend
+            const prefResp = await fetch(`${API_BASE_URL}/api/vendors/download`, {
+              method: 'POST',
+              headers: getHeaders(),
+              body: JSON.stringify({ file_key: prefKey })
+            });
+            
+            if (!prefResp.ok) {
+              console.log(`[R2Sync] No match for key: ${prefKey} (${prefResp.status})`);
+              continue;
+            }
+
+            const data = await prefResp.json();
+            if (!data.downloadUrl) {
+              console.log(`[R2Sync] No downloadUrl in response for: ${prefKey}`);
+              continue;
+            }
+
+            // Step 2: Fetch the actual JSON content from R2 via signed URL
+            console.log(`[R2Sync] Got signed URL for ${prefKey}, downloading content...`);
+            const actualFileResp = await fetch(data.downloadUrl);
+            if (!actualFileResp.ok) {
+              console.warn(`[R2Sync] Failed to download content from signed URL for: ${prefKey}`);
+              continue;
+            }
+
+            const prefs = await actualFileResp.json();
+            const loadedCopies = parseInt(prefs.copies) || 1;
+            
+            console.log(`[R2Sync] ✅ SUCCESS for job #${job.id}: copies=${loadedCopies}, colorMode=${prefs.colorMode}`, prefs);
+            
+            setJobPrefs(prev => ({ ...prev, [key]: prefs }));
+            setQueueData(prev => prev.map(item => 
+              item.id === job.id ? { ...item, copies: loadedCopies, isPrefFetched: true } : item
+            ));
+            found = true;
+            break; 
+          } catch (e) { 
+            console.error(`[R2Sync] Error fetching ${prefKey}:`, e);
+          }
+        }
+
+        if (!found) {
+          // Mark as fetched even on failure to avoid retrying endlessly
+          console.log(`[R2Sync] ❌ No preference JSON found for job #${job.id}`);
+          setQueueData(prev => prev.map(item => 
+            item.id === job.id ? { ...item, isPrefFetched: true } : item
+          ));
+        }
+      }
+    };
+
+    // Small delay to let the queue render first, then fetch prefs
+    const timer = setTimeout(fetchMissingPrefs, 500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [queueData.length]); // Only re-run when the number of items changes, not on every state update
 
   const handleViewOrPrint = async (job: PrintJob, isPrint: boolean) => {
     const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
@@ -232,39 +396,76 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
        const tempPath = path.join(os.tmpdir(), `printr_${name}`);
       fs.writeFileSync(tempPath, buffer);
+      
+      // Track this file for automatic cleanup after 1 hour
+      tempFilesRef.current.push({ path: tempPath, createdAt: Date.now() });
 
       if (!isPrint) {
         shell.openPath(tempPath);
       } else {
         // 4. Fetch JSON Preferences for final print command
+        // We use the manual override (job.copies) if it's > 1, otherwise default to 1
         let printOptions = {
-          copies: 1,
+          copies: job.copies && job.copies > 1 ? job.copies : 1,
           sides: 'one-sided' as 'one-sided' | 'two-sided-long-edge' | 'two-sided-short-edge',
           isColor: isColor
         };
 
-        const parts = key.split('_');
-        if (parts.length >= 2) {
-          const prefKey = `${parts[0]}/job_preferences_${parts[0]}_${parts[1]}.json`;
-          try {
-            const prefResp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${encodeURIComponent(prefKey)}`, {
-              headers: getHeaders()
-            }).catch(err => {
-              throw new Error(`Preferences fetch failed: ${err.message}`);
-            });
-            if (prefResp.ok) {
-              const prefs = await prefResp.json();
-              printOptions.copies = parseInt(prefs.copies) || 1;
-              if (prefs.doubleSided === 'YES') {
-                printOptions.sides = 'two-sided-long-edge';
+        const pathParts = key.split('/');
+        if (pathParts.length >= 2) {
+          const vId = pathParts[0];
+          const fullFileName = pathParts[1];
+          
+          let possiblePrefKeys = [
+            `${vId}/${fullFileName.replace('.pdf', '.json')}`, // Direct match (admin116.json)
+            `${vId}/job_preferences_${fullFileName.replace('.pdf', '.json')}`
+          ];
+          
+          const orderIdFromFile = fullFileName.match(/\d+/)?.[0];
+          if (orderIdFromFile) {
+             possiblePrefKeys.push(`${vId}/job_preferences_${orderIdFromFile}.json`);
+          }
+
+          if (job.sender_name) {
+             const sender = (job.sender_name || 'unknown').toLowerCase().split(' ')[0];
+             possiblePrefKeys.push(`${vId}/job_preferences_${sender}_${job.id}.json`);
+          }
+
+          console.log(`[Printer] Checking JSON for final print options. Current UI count: ${printOptions.copies}`);
+
+          for (const prefKey of possiblePrefKeys) {
+            try {
+              const prefResp = await fetch(`${API_BASE_URL}/api/vendors/download?key=${encodeURIComponent(prefKey)}`, {
+                headers: getHeaders()
+              });
+              
+              if (prefResp.ok) {
+                const data = await prefResp.json();
+                if (data.downloadUrl) {
+                  const actualFileResp = await fetch(data.downloadUrl);
+                  if (actualFileResp.ok) {
+                    const prefs = await actualFileResp.json();
+                    console.log(`[Printer] Final prefs loaded from ${prefKey}:`, prefs);
+                    
+                    const loadedCopies = parseInt(prefs.copies) || 1;
+                    
+                    // If the UI is still at default (1) or was just reset, use the JSON value
+                    // Otherwise, respect what the vendor sees in the quantity bar
+                    if (printOptions.copies === 1 && loadedCopies > 1) {
+                        printOptions.copies = loadedCopies;
+                    }
+
+                    if (prefs.doubleSided === 'YES') printOptions.sides = 'two-sided-long-edge';
+                    if (prefs.colorMode === 'Colored') printOptions.isColor = true;
+                    else if (prefs.colorMode === 'Black & White') printOptions.isColor = false;
+                    break; 
+                  }
+                }
               }
-              if (prefs.colorMode === 'Colored') {
-                printOptions.isColor = true;
-              } else if (prefs.colorMode === 'Black & White') {
-                printOptions.isColor = false;
-              }
+            } catch (e) { 
+              console.warn(`Could not load preference from ${prefKey}:`, e); 
             }
-          } catch (e) { console.warn("Could not load preference JSON, using defaults:", e); }
+          }
         }
 
         const printerName = printOptions.isColor ? vendorConfig.color_printer : vendorConfig.bw_printer;
@@ -275,6 +476,10 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
            return;
         }
 
+        // --- ADDED ALERT FOR VERIFICATION ---
+        alert(`PRINTING: ${name}\nCopies: ${printOptions.copies}\nPrinter: ${printerName}`);
+
+        console.log(`[Printer] Issuing print-file IPC with copies: ${printOptions.copies}, isColor: ${printOptions.isColor}`);
         const printResult = await ipcRenderer.invoke('print-file', {
            filePath: tempPath,
            printerName,
@@ -534,6 +739,27 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                         </td>
                         <td className="actions-cell-premium">
                           <div className="action-button-group">
+                            <div className="copies-control">
+                              <span className="copies-label">Qty:</span>
+                              <input 
+                                type="number" 
+                                min="1" 
+                                max="99" 
+                                value={(() => {
+                                  const key = row.file_key || (row as any).fileKey || row.file_name || (row as any).fileName;
+                                  const prefCopies = jobPrefs[key]?.copies;
+                                  // Prioritize local UI change, then JSON preference, then default
+                                  return (row as any).copies || prefCopies || 1;
+                                })()} 
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 1;
+                                  setQueueData(prev => prev.map(item => 
+                                    item.id === row.id ? { ...item, copies: val } : item
+                                  ));
+                                }}
+                                className="copies-override-input"
+                              />
+                            </div>
                             <button 
                               className="icon-action-btn print" 
                               title="Print & Mark Done" 
@@ -898,35 +1124,80 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         .actions-cell-premium { text-align: right; min-width: 160px; }
         .action-button-group {
           display: flex;
-          gap: 8px;
+          gap: 12px;
           justify-content: flex-end;
+          align-items: center;
           white-space: nowrap;
         }
 
-        .icon-action-btn {
+        .copies-control {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #F1F5F9;
+          padding: 4px 10px;
+          border-radius: 12px;
+          border: 1px solid rgba(0,0,0,0.03);
+        }
+
+        .copies-label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #64748B;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .copies-override-input {
           width: 38px;
-          height: 38px;
-          border-radius: 10px;
+          padding: 4px 6px;
+          border-radius: 8px;
+          border: 1px solid rgba(0,0,0,0.1);
+          background: white;
+          font-family: 'Outfit';
+          font-weight: 700;
+          font-size: 14px;
+          color: #111;
+          text-align: center;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .copies-override-input:focus {
+          border-color: #000;
+        }
+
+        /* Hide arrows/spinners in number input */
+        .copies-override-input::-webkit-inner-spin-button, 
+        .copies-override-input::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+
+        .icon-action-btn {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
           border: 1px solid rgba(0,0,0,0.08);
           background: white;
           cursor: pointer;
-          transition: all 0.2s;
-          color: #555;
+          transition: all 0.2s ease;
+          color: #475569;
         }
 
-        .icon-action-btn:hover {
+        .icon-action-btn:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
           color: #111;
           border-color: #111;
         }
 
-        .icon-action-btn.print:hover { background: #000; color: white; border-color: #000; }
-        .icon-action-btn.done:hover { background: #10B981; color: white; border-color: #10B981; }
-        .icon-action-btn.cancel:hover { background: #EF4444; color: white; border-color: #EF4444; }
+        .icon-action-btn.print:hover:not(:disabled) { background: #000; color: white; border-color: #000; }
+        .icon-action-btn.view:hover:not(:disabled) { background: #F8FAFC; color: #1E293B; border-color: #CBD5E1; }
+        .icon-action-btn.cancel:hover:not(:disabled) { background: #FFF1F2; color: #E11D48; border-color: #FDA4AF; }
 
         .loader-box-premium, .empty-box-premium {
           padding: 100px 40px;
