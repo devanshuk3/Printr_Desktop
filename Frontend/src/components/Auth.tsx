@@ -52,7 +52,20 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
     try {
       console.log(`[Auth] Attempting ${isLogin ? 'Login' : 'Register'} at: ${API_BASE_URL}${endpoint}`);
-      // Security Fix Applied: Verified fetch headers
+      
+      // Frontend Validation
+      if (!isLogin && password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        setLoading(false);
+        return;
+      }
+
+      if (identifier.includes(' ')) {
+        setError('Vendor ID cannot contain spaces.');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,12 +73,26 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       });
 
       const data = await response.json();
-      if (data.success && data.token) {
-        localStorage.setItem('printr_token', data.token);
-        localStorage.setItem('printr_vendor_id', data.vendor_id || identifier);
-        onLogin(data.vendor_id || identifier);
+
+      if (response.status === 200 || response.status === 201) {
+        if (data.success && data.token) {
+          localStorage.setItem('printr_token', data.token);
+          localStorage.setItem('printr_vendor_id', data.vendor_id || identifier);
+          onLogin(data.vendor_id || identifier);
+        } else {
+          setError(data.message || 'Authentication failed. Please check your credentials.');
+        }
+      } else if (response.status === 423) {
+        // Account Locked
+        setError(data.message || 'Account is temporarily locked due to too many failed attempts.');
+      } else if (response.status === 400 && data.errors) {
+        // Validation Errors
+        const detailedError = data.errors.map((e: any) => e.message).join(', ');
+        setError(`Validation Error: ${detailedError}`);
+      } else if (response.status === 401) {
+        setError(data.message || 'Invalid Vendor ID or Password.');
       } else {
-        setError(data.message || `Authentication failed (${response.status}). Please check your credentials.`);
+        setError(data.message || `Server error (${response.status}). Please try again later.`);
       }
     } catch (err: any) {
       setError(`Connection failed: ${err.message}. Please check your internet connection or try again later.`);
@@ -114,9 +141,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="auth-text-input"
+                    minLength={isLogin ? 1 : 8}
                     required 
                   />
                 </div>
+                {!isLogin && <p className="field-hint">* Minimum 8 characters required</p>}
               </div>
 
               {!isLogin && (

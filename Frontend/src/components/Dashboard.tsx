@@ -64,8 +64,16 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
       clearTimeout(timeoutId);
 
       if (!resp.ok) {
+        if (resp.status === 401) {
+            setConnectionError("Session expired. Please log in again.");
+            setIsOnline(false);
+            return;
+        }
         if (resp.status === 403) {
             console.warn("Authorization failed or CORS block detected.");
+            setConnectionError("Access denied. Please check your credentials.");
+            setIsOnline(false);
+            return;
         }
         throw new Error(`Server responded with ${resp.status}`);
       }
@@ -142,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         setPrices({
           bw: parseFloat(data.bw_price) || 5,
           color: parseFloat(data.color_price) || 10
-        });
+        }); 
         setVendorConfig({
           bw_printer: data.bw_printer || '',
           color_printer: data.color_printer || ''
@@ -497,7 +505,6 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
           method: 'POST',
           headers: getHeaders(),
           body: JSON.stringify({ 
-            file_key: key,
             id: job.id
           })
         }).catch(err => {
@@ -539,7 +546,6 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ 
-          file_key: key,
           id: job.id
         })
       });
