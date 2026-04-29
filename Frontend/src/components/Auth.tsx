@@ -80,19 +80,19 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           localStorage.setItem('printr_vendor_id', data.vendor_id || identifier);
           onLogin(data.vendor_id || identifier);
         } else {
-          setError(data.message || 'Authentication failed. Please check your credentials.');
+          setError(data.message || data.detail || 'Authentication failed. Please check your credentials.');
         }
       } else if (response.status === 423) {
         // Account Locked
-        setError(data.message || 'Account is temporarily locked due to too many failed attempts.');
+        setError(data.message || data.detail || 'Account is temporarily locked due to too many failed attempts.');
       } else if (response.status === 400 && data.errors) {
         // Validation Errors
         const detailedError = data.errors.map((e: any) => e.message).join(', ');
         setError(`Validation Error: ${detailedError}`);
       } else if (response.status === 401) {
-        setError(data.message || 'Invalid Vendor ID or Password.');
+        setError(data.message || data.detail || 'Invalid Vendor ID or Password.');
       } else {
-        setError(data.message || `Server error (${response.status}). Please try again later.`);
+        setError(data.message || data.detail || `Server error (${response.status}). Please try again later.`);
       }
     } catch (err: any) {
       setError(`Connection failed: ${err.message}. Please check your internet connection or try again later.`);
