@@ -8,30 +8,6 @@ const port = 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Mock database
-let vendors = [
-  { vendor_id: 'vn1003', password: '1234', full_name: 'Devanshu K', shop_name: 'Printr Demo' }
-];
-
-let printJobs = [
-  { 
-    id: 1, 
-    file_name: 'sample_document.pdf', 
-    file_key: 'sample-key-1', 
-    sender_name: 'John Doe', 
-    page_count: 5, 
-    status: 'Pending' 
-  },
-  { 
-    id: 2, 
-    file_name: 'invoice_march.pdf', 
-    file_key: 'invoice-key-2', 
-    sender_name: 'Jane Smith', 
-    page_count: 2, 
-    status: 'Pending' 
-  }
-];
-
 // Auth Routes
 app.post('/api/login', (req, res) => {
   const { vendor_id, password } = req.body;

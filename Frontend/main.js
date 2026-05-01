@@ -154,6 +154,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
       webSecurity: false,
@@ -161,8 +162,8 @@ function createWindow() {
   });
 
   const startURL = isDev
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, 'dist/index.html')}`;
+  ? 'http://localhost:3000'
+  : `file://${path.join(app.getAppPath(), 'dist/index.html')}`;
 
   mainWindow.loadURL(startURL);
 
@@ -189,14 +190,11 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 app.whenReady().then(() => {
   session.defaultSession.setCertificateVerifyProc((request, callback) => {
     const { hostname } = request;
-    if (
-      hostname === 'localhost' || 
-      hostname.includes('onrender.com') || 
-      hostname.includes('cloudflarestorage.com')
-    ) {
-      callback(0); // Trust
+
+    if (hostname === 'localhost') {
+      callback(0); // trust only local dev
     } else {
-      callback(-3); // Default behavior
+      callback(-3); // default secure behavior
     }
   });
 

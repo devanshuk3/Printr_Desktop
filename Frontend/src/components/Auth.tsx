@@ -32,39 +32,64 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setLoading(true);
     setError('');
 
+    // ── Frontend validation (before network request) ──
+    if (!identifier.trim()) {
+      setError('Vendor ID is required.');
+      setLoading(false);
+      return;
+    }
+
+    if (identifier.includes(' ')) {
+      setError('Vendor ID cannot contain spaces.');
+      setLoading(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(identifier.trim())) {
+      setError('Vendor ID can only contain letters, numbers, hyphens, and underscores.');
+      setLoading(false);
+      return;
+    }
+
+    if (!isLogin) {
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        setLoading(false);
+        return;
+      }
+      if (!fullName.trim()) {
+        setError('Full name is required.');
+        setLoading(false);
+        return;
+      }
+      if (!shopName.trim()) {
+        setError('Shop name is required.');
+        setLoading(false);
+        return;
+      }
+    }
+
     const endpoint = isLogin ? '/api/vendors/login' : '/api/vendors/register';
     const payload = isLogin 
-      ? { vendor_id: identifier, password: password }
+      ? { vendor_id: identifier.trim(), password: password }
       : { 
-          vendor_id: identifier, 
+          vendor_id: identifier.trim(), 
           password: password,
-          full_name: fullName,
-          shop_name: shopName,
-          phone: phone,
-          upi_id: upiId,
-          address: address,
+          full_name: fullName.trim(),
+          shop_name: shopName.trim(),
+          phone: phone.trim() || null,
+          upi_id: upiId.trim() || null,
+          address: address.trim() || null,
           bw_price: hasBW ? parseFloat(bwPrice) || 0 : 0,
           color_price: hasColor ? parseFloat(colorPrice) || 0 : 0,
-          paper_sizes: paperSizes,
+          paper_sizes: paperSizes.trim() || null,
           has_bw_printer: hasBW,
           has_color_printer: hasColor
         };
 
     try {
       console.log(`[Auth] Attempting ${isLogin ? 'Login' : 'Register'} at: ${API_BASE_URL}${endpoint}`);
-      
-      // Frontend Validation
-      if (!isLogin && password.length < 8) {
-        setError('Password must be at least 8 characters long.');
-        setLoading(false);
-        return;
-      }
-
-      if (identifier.includes(' ')) {
-        setError('Vendor ID cannot contain spaces.');
-        setLoading(false);
-        return;
-      }
+      console.log(`[Auth] Payload:`, JSON.stringify(payload, null, 2));
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
@@ -73,6 +98,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       });
 
       const data = await response.json();
+      console.log(`[Auth] Response ${response.status}:`, JSON.stringify(data));
 
       if (response.status === 200 || response.status === 201) {
         if (data.success && data.token) {
@@ -86,13 +112,20 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         // Account Locked
         setError(data.message || data.detail || 'Account is temporarily locked due to too many failed attempts.');
       } else if (response.status === 400 && data.errors) {
-        // Validation Errors
-        const detailedError = data.errors.map((e: any) => e.message).join(', ');
+        // Validation Errors from Zod
+        const detailedError = data.errors.map((e: any) => `${e.field}: ${e.message}`).join('; ');
         setError(`Validation Error: ${detailedError}`);
+      } else if (response.status === 409) {
+        setError(data.message || 'This Vendor ID is already registered. Please choose a different one.');
       } else if (response.status === 401) {
         setError(data.message || data.detail || 'Invalid Vendor ID or Password.');
       } else {
-        setError(data.message || data.detail || `Server error (${response.status}). Please try again later.`);
+        // For 500 and other errors, show message + detail if available
+        const errorParts = [data.message];
+        if (data.detail && data.detail !== data.message) {
+          errorParts.push(data.detail);
+        }
+        setError(errorParts.filter(Boolean).join(' — ') || `Server error (${response.status}). Please try again later.`);
       }
     } catch (err: any) {
       setError(`Connection failed: ${err.message}. Please check your internet connection or try again later.`);

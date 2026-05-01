@@ -18,6 +18,16 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
     color_printer: '',
     bw_price: 2,
     color_price: 10,
+    bw_price_single: 0,
+    bw_price_2_to_5: 0,
+    bw_price_6_to_9: 0,
+    bw_price_10_plus: 0,
+    color_price_single: 0,
+    color_price_2_to_5: 0,
+    color_price_6_to_9: 0,
+    color_price_10_plus: 0,
+    hard_binding_price: 0,
+    spiral_binding_price: 0,
     enable_upi: true,
     upi_id: '',
     shop_name: '',
@@ -55,6 +65,16 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
             color_printer: data.color_printer || '',
             bw_price: parseFloat(data.bw_price) || 2,
             color_price: parseFloat(data.color_price) || 10,
+            bw_price_single: parseFloat(data.bw_price_single) || 0,
+            bw_price_2_to_5: parseFloat(data.bw_price_2_to_5) || 0,
+            bw_price_6_to_9: parseFloat(data.bw_price_6_to_9) || 0,
+            bw_price_10_plus: parseFloat(data.bw_price_10_plus) || 0,
+            color_price_single: parseFloat(data.color_price_single) || 0,
+            color_price_2_to_5: parseFloat(data.color_price_2_to_5) || 0,
+            color_price_6_to_9: parseFloat(data.color_price_6_to_9) || 0,
+            color_price_10_plus: parseFloat(data.color_price_10_plus) || 0,
+            hard_binding_price: parseFloat(data.hard_binding_price) || 0,
+            spiral_binding_price: parseFloat(data.spiral_binding_price) || 0,
             enable_upi: data.enable_upi ?? true,
             upi_id: data.upi_id || '',
             shop_name: data.shop_name || '',
@@ -161,36 +181,74 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
               </div>
 
               {config.has_bw_printer && (
-                <div className="form-item-row">
-                  <label className="form-label-bold">B&W Price per page</label>
-                  <div className="currency-input-field">
-                    <span className="currency-symbol">₹</span>
-                    <input
-                      type="number"
-                      value={config.bw_price}
-                      step="0.5"
-                      className="clean-input"
-                      onChange={(e) => handleChange('bw_price', parseFloat(e.target.value))}
-                    />
+                <div className="pricing-slabs-container">
+                  <label className="form-label-bold">B&W Pricing Slabs</label>
+                  <div className="pricing-grid">
+                    <div className="pricing-item">
+                      <span>Default</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>1 Page</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price_single} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price_single', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>2-5 Pages</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price_2_to_5} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price_2_to_5', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>6-9 Pages</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price_6_to_9} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price_6_to_9', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>10+ Pages</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price_10_plus} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price_10_plus', parseFloat(e.target.value))} /></div>
+                    </div>
                   </div>
                 </div>
               )}
 
               {config.has_color_printer && (
-                <div className="form-item-row">
-                  <label className="form-label-bold">Color Price per page</label>
-                  <div className="currency-input-field">
-                    <span className="currency-symbol">₹</span>
-                    <input
-                      type="number"
-                      value={config.color_price}
-                      step="1"
-                      className="clean-input"
-                      onChange={(e) => handleChange('color_price', parseFloat(e.target.value))}
-                    />
+                <div className="pricing-slabs-container">
+                  <label className="form-label-bold">Color Pricing Slabs</label>
+                  <div className="pricing-grid">
+                    <div className="pricing-item">
+                      <span>Default</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price} step="1" className="clean-input" onChange={(e) => handleChange('color_price', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>1 Page</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price_single} step="1" className="clean-input" onChange={(e) => handleChange('color_price_single', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>2-5 Pages</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price_2_to_5} step="1" className="clean-input" onChange={(e) => handleChange('color_price_2_to_5', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>6-9 Pages</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price_6_to_9} step="1" className="clean-input" onChange={(e) => handleChange('color_price_6_to_9', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>10+ Pages</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price_10_plus} step="1" className="clean-input" onChange={(e) => handleChange('color_price_10_plus', parseFloat(e.target.value))} /></div>
+                    </div>
                   </div>
                 </div>
               )}
+
+              <div className="pricing-slabs-container">
+                  <label className="form-label-bold">Binding Pricing</label>
+                  <div className="pricing-grid">
+                    <div className="pricing-item">
+                      <span>Spiral Binding</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.spiral_binding_price} step="5" className="clean-input" onChange={(e) => handleChange('spiral_binding_price', parseFloat(e.target.value))} /></div>
+                    </div>
+                    <div className="pricing-item">
+                      <span>Hard Binding</span>
+                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.hard_binding_price} step="5" className="clean-input" onChange={(e) => handleChange('hard_binding_price', parseFloat(e.target.value))} /></div>
+                    </div>
+                  </div>
+              </div>
 
               <div className="tip-box">
                 <Info size={16} className="info-icon" />
@@ -316,6 +374,10 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
 
         .horizontal-input-group { flex-direction: column; align-items: flex-start; gap: 8px; border-bottom: none; }
 
+        .pricing-slabs-container { display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid #F0F0F0; padding-bottom: 16px; margin-top: 8px; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+        .pricing-item { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #555; }
+        
         /* Toggle Switch Styling */
         .toggle-switch-container { position: relative; width: 50px; height: 26px; }
         .toggle-switch-container input { opacity: 0; width: 0; height: 0; }
