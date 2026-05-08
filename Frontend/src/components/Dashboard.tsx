@@ -35,6 +35,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
+  const activeQueue = queueData.filter(r => (r as any).payment_method !== 'Cash on Delivery');
 
   const [total, setTotal] = useState(0);
   const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
@@ -50,6 +51,15 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   const tempFilesRef = useRef<{ path: string; createdAt: number }[]>([]);
 
   const fetchQueue = async () => {
+    const token = localStorage.getItem('printr_token');
+    if (!token) {
+      console.warn('[Dashboard] No auth token available, skipping queue fetch.');
+      setConnectionError('Not authenticated. Please log in.');
+      setIsOnline(false);
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30s for Render wakes
 
@@ -72,6 +82,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         if (resp.status === 403) {
             console.warn("Authorization failed or CORS block detected.");
             setConnectionError("Access denied. Please check your credentials.");
+            setIsOnline(false);
+            return;
+        }
+        if (resp.status === 500) {
+            console.error('[Dashboard] Server returned 500 — possible auth or backend issue.');
+            setConnectionError('Server error (500). If this persists, try logging out and back in.');
             setIsOnline(false);
             return;
         }
@@ -140,6 +156,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
   useEffect(() => { jobPrefsRef.current = jobPrefs; }, [jobPrefs]);
 
   const fetchVendorPrices = async () => {
+    const token = localStorage.getItem('printr_token');
+    if (!token) {
+      console.warn('[Dashboard] No auth token available, skipping vendor config fetch.');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/vendors/settings/me`, {
         headers: getHeaders()
@@ -229,12 +251,12 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
   useEffect(() => {
     // Adaptive Polling: Slow down when idle (60s), speed up when active (20s)
-    if (queueData.length === 0 && pollInterval !== 60000) {
+    if (activeQueue.length === 0 && pollInterval !== 60000) {
       setPollInterval(60000);
-    } else if (queueData.length > 0 && pollInterval !== 20000) {
+    } else if (activeQueue.length > 0 && pollInterval !== 20000) {
       setPollInterval(20000);
     }
-  }, [queueData.length]);
+  }, [activeQueue.length]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -351,7 +373,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     // Small delay to let the queue render first, then fetch prefs
     const timer = setTimeout(fetchMissingPrefs, 500);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [queueData.length]); // Only re-run when the number of items changes, not on every state update
+  }, [activeQueue.length]); // Only re-run when the number of items changes, not on every state update
 
   const handleViewOrPrint = async (job: PrintJob, isPrint: boolean) => {
     const key = job.file_key || (job as any).fileKey || job.file_name || (job as any).fileName;
@@ -605,7 +627,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                  </div>
                  <span>PENDING JOBS</span>
                </div>
-               <div className="stat-card-value">{queueData.length}</div>
+               <div className="stat-card-value">{activeQueue.length}</div>
                <div className="stat-card-footer">Jobs ready for processing</div>
             </div>
           </div>
@@ -642,7 +664,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
             <div className="queue-header">
               <div className="queue-title">
                 <h3>Active Print Queue</h3>
-                <span className="queue-count">{queueData.length} Items</span>
+                <span className="queue-count">{activeQueue.length} Items</span>
               </div>
             </div>
 
@@ -667,7 +689,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                   <span>Try Again</span>
                 </button>
               </div>
-            ) : queueData.length === 0 ? (
+            ) : activeQueue.length === 0 ? (
               <div className="empty-box-premium">
                 <div className="empty-icon-wrap">
                   <Printer size={48} />
@@ -686,12 +708,13 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                       <th>PAGES</th>
                       <th>PREFERENCES</th>
                       <th>EST. COST</th>
+                      <th>PAYMENT</th>
                       <th>STATUS</th>
                       <th className="text-right">ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {queueData.map((row) => (
+                    {activeQueue.map((row) => (
                       <tr key={row.id} className="queue-row">
                         <td className="id-cell">
                           <span className="order-id-badge">#{row.id}</span>
@@ -737,6 +760,16 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                           <span className="cost-value">
                             ₹{Number((row as any).total_amount || (row as any).amount || 0).toFixed(2)}
                           </span>
+                        </td>
+                        <td className="payment-cell">
+                          <div className="payment-info">
+                            <span className={`payment-method ${(row as any).payment_method === 'Cash on Delivery' ? 'cod' : 'online'}`}>
+                              {(row as any).payment_method === 'Cash on Delivery' ? 'COD' : 'Online'}
+                            </span>
+                            <span className={`payment-status ${(row as any).payment_status}`}>
+                              {(row as any).payment_status}
+                            </span>
+                          </div>
                         </td>
                         <td>
                           <span className={`status-pill ${(row.status || 'pending').toLowerCase()}`}>
@@ -1126,6 +1159,35 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         .status-pill.failed { background: #FFF5F5; color: #E03131; }
         .status-pill.color { background: #F3E8FF; color: #7E22CE; }
         .status-pill.bw { background: #F1F5F9; color: #475569; }
+
+        .payment-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .payment-method {
+          font-size: 11px;
+          font-weight: 800;
+          padding: 3px 8px;
+          border-radius: 4px;
+          text-transform: uppercase;
+          display: inline-block;
+          width: fit-content;
+        }
+
+        .payment-method.online { background: #E0F2FE; color: #0369A1; }
+        .payment-method.cod { background: #FEF3C7; color: #92400E; }
+
+        .payment-status {
+          font-size: 10px;
+          font-weight: 700;
+          color: #64748B;
+          text-transform: capitalize;
+        }
+
+        .payment-status.completed { color: #10B981; }
+        .payment-status.pending { color: #F59E0B; }
 
         .actions-cell-premium { text-align: right; min-width: 160px; }
         .action-button-group {

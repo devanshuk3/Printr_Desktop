@@ -1,9 +1,12 @@
 // Backend Configuration
 export const API_BASE_URL = 'https://printr-backend.onrender.com'; // production URL
-export const getHeaders = () => {
+export const getHeaders = (): Record<string, string> => {
     const token = localStorage.getItem('printr_token');
-    return {
+    const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
     };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
 };

@@ -2,13 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { Search, History } from 'lucide-react';
 import { API_BASE_URL, getHeaders } from '../config';
 
-const CODVerification: React.FC = () => {
+interface CODVerificationProps {
+  vendorId: string;
+}
+
+const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
   const [orderId, setOrderId] = useState('');
   const [activities, setActivities] = useState<any[]>([]);
+  const [codOrders, setCodOrders] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
+  const fetchCODOrders = async () => {
+    try {
+      const token = localStorage.getItem('printr_token');
+      if (!vendorId || !token) return;
+      const response = await fetch(`${API_BASE_URL}/api/vendors/files?vendor_id=${vendorId}`, {
+        headers: getHeaders()
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const codOnly = (data.files || []).filter((o: any) => o.payment_method === 'Cash on Delivery');
+        setCodOrders(codOnly);
+      }
+    } catch (err) {
+      console.error('Failed to fetch COD orders:', err);
+    }
+  };
+
   const fetchHistory = async () => {
+    const token = localStorage.getItem('printr_token');
+    if (!token) return;
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/vendors/activity-log`, {
         headers: getHeaders()
@@ -24,7 +49,11 @@ const CODVerification: React.FC = () => {
 
   useEffect(() => {
     fetchHistory();
-    const interval = setInterval(fetchHistory, 10000);
+    fetchCODOrders();
+    const interval = setInterval(() => {
+      fetchHistory();
+      fetchCODOrders();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -56,6 +85,7 @@ const CODVerification: React.FC = () => {
         setMessage({ text: `Order ${numericId} marked as ${status} successfully`, type: 'success' });
         setOrderId('');
         fetchHistory();
+        fetchCODOrders();
       } else {
         setMessage({ text: data.message || `Failed to update order ${numericId}`, type: 'error' });
       }
@@ -79,6 +109,32 @@ const CODVerification: React.FC = () => {
 
   return (
     <div className="cod-container">
+      <div className="cod-list-sidebar glass-panel">
+        <h3>Pending COD Orders</h3>
+        <div className="cod-orders-list">
+          {codOrders.length === 0 ? (
+            <p className="no-cod">No pending COD orders</p>
+          ) : (
+            codOrders.map(order => (
+              <div 
+                key={order.id} 
+                className="cod-order-item" 
+                onClick={() => setOrderId(order.id.toString())}
+              >
+                <div className="cod-order-main">
+                  <span className="order-id">#{order.id}</span>
+                  <span className="order-cost">₹{Number(order.total_amount).toFixed(2)}</span>
+                </div>
+                <div className="cod-order-footer">
+                  <span className="order-sender">{order.sender_name || 'User'}</span>
+                  <span className="order-pages">{order.page_count} pages</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       <div className="cod-main glass-panel">
         <div className="cod-card">
           <div className="cod-icon-header">
@@ -156,17 +212,83 @@ const CODVerification: React.FC = () => {
           display: flex;
           height: 100%;
           gap: 24px;
-          padding: 40px;
+          padding: 24px;
           flex: 1;
         }
 
+        .cod-list-sidebar {
+          width: 320px;
+          padding: 24px;
+          border-radius: 24px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .cod-list-sidebar h3 {
+          font-size: 18px;
+          margin-bottom: 20px;
+          color: var(--text-primary);
+        }
+
+        .cod-orders-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          overflow-y: auto;
+        }
+
+        .cod-order-item {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--glass-border);
+          border-radius: 12px;
+          padding: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .cod-order-item:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: var(--accent-blue);
+          transform: translateX(4px);
+        }
+
+        .cod-order-main {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 6px;
+        }
+
+        .order-id {
+          font-weight: 700;
+          color: var(--accent-blue);
+        }
+
+        .order-cost {
+          font-weight: 700;
+          color: white;
+        }
+
+        .cod-order-footer {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          color: var(--text-secondary);
+        }
+
+        .no-cod {
+          text-align: center;
+          color: var(--text-secondary);
+          margin-top: 20px;
+          font-style: italic;
+        }
+
         .cod-main {
-          flex: 2;
+          flex: 1.5;
           display: flex;
           align-items: center;
           justify-content: center;
           border-radius: 32px;
-          padding: 60px;
+          padding: 40px;
         }
 
         .cod-card {

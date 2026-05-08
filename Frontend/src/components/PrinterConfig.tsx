@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Printer, Wallet, Info, Check } from 'lucide-react';
-import { API_BASE_URL, getHeaders } from '../config';
+import React, { useState, useEffect } from "react";
+import { Save, Printer, Wallet, Info, Check } from "lucide-react";
+import { API_BASE_URL, getHeaders } from "../config";
 
 interface PrinterConfigProps {
   activeTab?: string;
 }
 
-const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) => {
+const PrinterConfig: React.FC<PrinterConfigProps> = ({
+  activeTab = "config",
+}) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,8 +16,8 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
   // Form State
   const [config, setConfig] = useState({
     auto_accept_jobs: true,
-    bw_printer: '',
-    color_printer: '',
+    bw_printer: "",
+    color_printer: "",
     bw_price: 2,
     color_price: 10,
     bw_price_single: 0,
@@ -29,11 +31,11 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
     hard_binding_price: 0,
     spiral_binding_price: 0,
     enable_upi: true,
-    upi_id: '',
-    shop_name: '',
+    upi_id: "",
+    shop_name: "",
     min_amount: 1,
     has_bw_printer: true,
-    has_color_printer: false
+    has_color_printer: false,
   });
 
   const [printers, setPrinters] = useState<any[]>([]);
@@ -42,8 +44,8 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
   useEffect(() => {
     const fetchPrinters = async () => {
       try {
-        const { ipcRenderer } = (window as any).require('electron');
-        const list = await ipcRenderer.invoke('get-printers');
+        const { ipcRenderer } = (window as any).require("electron");
+        const list = await ipcRenderer.invoke("get-printers");
         console.log("Hardware Printers:", list);
         setPrinters(list);
       } catch (err) {
@@ -53,16 +55,22 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
     fetchPrinters();
 
     const fetchConfig = async () => {
+      const token = localStorage.getItem("printr_token");
+      if (!token) return;
+
       try {
-        const response = await fetch(`${API_BASE_URL}/api/vendors/settings/me`, {
-          headers: getHeaders()
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/api/vendors/settings/me`,
+          {
+            headers: getHeaders(),
+          },
+        );
         if (response.ok) {
           const data = await response.json();
           setConfig({
             auto_accept_jobs: data.auto_accept_jobs ?? true,
-            bw_printer: data.bw_printer || '',
-            color_printer: data.color_printer || '',
+            bw_printer: data.bw_printer || "",
+            color_printer: data.color_printer || "",
             bw_price: parseFloat(data.bw_price) || 2,
             color_price: parseFloat(data.color_price) || 10,
             bw_price_single: parseFloat(data.bw_price_single) || 0,
@@ -76,15 +84,15 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
             hard_binding_price: parseFloat(data.hard_binding_price) || 0,
             spiral_binding_price: parseFloat(data.spiral_binding_price) || 0,
             enable_upi: data.enable_upi ?? true,
-            upi_id: data.upi_id || '',
-            shop_name: data.shop_name || '',
+            upi_id: data.upi_id || "",
+            shop_name: data.shop_name || "",
             min_amount: parseFloat(data.min_amount) || 1,
             has_bw_printer: data.has_bw_printer ?? true,
-            has_color_printer: data.has_color_printer ?? false
+            has_color_printer: data.has_color_printer ?? false,
           });
         }
       } catch (err) {
-        console.error('Failed to fetch config:', err);
+        console.error("Failed to fetch config:", err);
       }
     };
     fetchConfig();
@@ -95,14 +103,14 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
     setError(null);
     try {
       const response = await fetch(`${API_BASE_URL}/api/vendors/settings`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getHeaders(),
-        body: JSON.stringify(config)
+        body: JSON.stringify(config),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save configuration');
+        throw new Error(errorData.message || "Failed to save configuration");
       }
 
       setShowSuccess(true);
@@ -122,12 +130,14 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
     <div className="config-viewport">
       <header className="config-header">
         <h1 className="config-title">Configuration</h1>
-        <p className="config-subtitle">Adjust your pricing, printer settings, and payment methods.</p>
+        <p className="config-subtitle">
+          Adjust your pricing, printer settings, and payment methods.
+        </p>
       </header>
 
       <div className="config-cards-grid">
         {/* Printer Settings Card */}
-        {(activeTab === 'config' || activeTab === 'settings') && (
+        {(activeTab === "config" || activeTab === "settings") && (
           <section className="config-card-panel white-card">
             <div className="card-header-with-icon">
               <Printer size={20} className="blue-icon" />
@@ -141,11 +151,13 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
                   <select
                     className="standard-styled-input select-compact"
                     value={config.bw_printer}
-                    onChange={(e) => handleChange('bw_printer', e.target.value)}
+                    onChange={(e) => handleChange("bw_printer", e.target.value)}
                   >
                     <option value="">Select B&W Printer...</option>
                     {printers.map((p, idx) => (
-                      <option key={idx} value={p.name}>{p.name}</option>
+                      <option key={idx} value={p.name}>
+                        {p.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -153,15 +165,21 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
 
               {config.has_color_printer && (
                 <div className="form-item-row">
-                  <label className="form-label-bold">Color Printing Device</label>
+                  <label className="form-label-bold">
+                    Color Printing Device
+                  </label>
                   <select
                     className="standard-styled-input select-compact"
                     value={config.color_printer}
-                    onChange={(e) => handleChange('color_printer', e.target.value)}
+                    onChange={(e) =>
+                      handleChange("color_printer", e.target.value)
+                    }
                   >
                     <option value="">Select Color Printer...</option>
                     {printers.map((p, idx) => (
-                      <option key={idx} value={p.name}>{p.name}</option>
+                      <option key={idx} value={p.name}>
+                        {p.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -174,9 +192,14 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
                     type="checkbox"
                     id="auto-accept"
                     checked={config.auto_accept_jobs}
-                    onChange={(e) => handleChange('auto_accept_jobs', e.target.checked)}
+                    onChange={(e) =>
+                      handleChange("auto_accept_jobs", e.target.checked)
+                    }
                   />
-                  <label htmlFor="auto-accept" className="toggle-slider"></label>
+                  <label
+                    htmlFor="auto-accept"
+                    className="toggle-slider"
+                  ></label>
                 </div>
               </div>
 
@@ -186,23 +209,90 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
                   <div className="pricing-grid">
                     <div className="pricing-item">
                       <span>Default</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.bw_price}
+                          step="0.5"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange("bw_price", parseFloat(e.target.value))
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="pricing-item">
                       <span>1 Page</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price_single} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price_single', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.bw_price_single}
+                          step="0.5"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "bw_price_single",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="pricing-item">
                       <span>2-5 Pages</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price_2_to_5} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price_2_to_5', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.bw_price_2_to_5}
+                          step="0.5"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "bw_price_2_to_5",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="pricing-item">
                       <span>6-9 Pages</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price_6_to_9} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price_6_to_9', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.bw_price_6_to_9}
+                          step="0.5"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "bw_price_6_to_9",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="pricing-item">
                       <span>10+ Pages</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.bw_price_10_plus} step="0.5" className="clean-input" onChange={(e) => handleChange('bw_price_10_plus', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.bw_price_10_plus}
+                          step="0.5"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "bw_price_10_plus",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -214,40 +304,138 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
                   <div className="pricing-grid">
                     <div className="pricing-item">
                       <span>Default</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price} step="1" className="clean-input" onChange={(e) => handleChange('color_price', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.color_price}
+                          step="1"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "color_price",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="pricing-item">
                       <span>1 Page</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price_single} step="1" className="clean-input" onChange={(e) => handleChange('color_price_single', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.color_price_single}
+                          step="1"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "color_price_single",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="pricing-item">
                       <span>2-5 Pages</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price_2_to_5} step="1" className="clean-input" onChange={(e) => handleChange('color_price_2_to_5', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.color_price_2_to_5}
+                          step="1"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "color_price_2_to_5",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="pricing-item">
                       <span>6-9 Pages</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price_6_to_9} step="1" className="clean-input" onChange={(e) => handleChange('color_price_6_to_9', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.color_price_6_to_9}
+                          step="1"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "color_price_6_to_9",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="pricing-item">
                       <span>10+ Pages</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.color_price_10_plus} step="1" className="clean-input" onChange={(e) => handleChange('color_price_10_plus', parseFloat(e.target.value))} /></div>
+                      <div className="currency-input-field small-input">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          value={config.color_price_10_plus}
+                          step="1"
+                          className="clean-input"
+                          onChange={(e) =>
+                            handleChange(
+                              "color_price_10_plus",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
               <div className="pricing-slabs-container">
-                  <label className="form-label-bold">Binding Pricing</label>
-                  <div className="pricing-grid">
-                    <div className="pricing-item">
-                      <span>Spiral Binding</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.spiral_binding_price} step="5" className="clean-input" onChange={(e) => handleChange('spiral_binding_price', parseFloat(e.target.value))} /></div>
-                    </div>
-                    <div className="pricing-item">
-                      <span>Hard Binding</span>
-                      <div className="currency-input-field small-input"><span className="currency-symbol">₹</span><input type="number" value={config.hard_binding_price} step="5" className="clean-input" onChange={(e) => handleChange('hard_binding_price', parseFloat(e.target.value))} /></div>
+                <label className="form-label-bold">Binding Pricing</label>
+                <div className="pricing-grid">
+                  <div className="pricing-item">
+                    <span>Spiral Binding</span>
+                    <div className="currency-input-field small-input">
+                      <span className="currency-symbol">₹</span>
+                      <input
+                        type="number"
+                        value={config.spiral_binding_price}
+                        step="5"
+                        className="clean-input"
+                        onChange={(e) =>
+                          handleChange(
+                            "spiral_binding_price",
+                            parseFloat(e.target.value),
+                          )
+                        }
+                      />
                     </div>
                   </div>
+                  <div className="pricing-item">
+                    <span>Hard Binding</span>
+                    <div className="currency-input-field small-input">
+                      <span className="currency-symbol">₹</span>
+                      <input
+                        type="number"
+                        value={config.hard_binding_price}
+                        step="5"
+                        className="clean-input"
+                        onChange={(e) =>
+                          handleChange(
+                            "hard_binding_price",
+                            parseFloat(e.target.value),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="tip-box">
@@ -258,7 +446,7 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
           </section>
         )}
 
-        {(activeTab === 'upi') && (
+        {activeTab === "upi" && (
           <section className="config-card-panel white-card">
             <div className="card-header-with-icon">
               <Wallet size={20} className="green-icon" />
@@ -273,7 +461,9 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
                     type="checkbox"
                     id="enable-upi"
                     checked={config.enable_upi}
-                    onChange={(e) => handleChange('enable_upi', e.target.checked)}
+                    onChange={(e) =>
+                      handleChange("enable_upi", e.target.checked)
+                    }
                   />
                   <label htmlFor="enable-upi" className="toggle-slider"></label>
                 </div>
@@ -286,18 +476,20 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
                   placeholder="e.g. example@upi"
                   className="standard-styled-input"
                   value={config.upi_id}
-                  onChange={(e) => handleChange('upi_id', e.target.value)}
+                  onChange={(e) => handleChange("upi_id", e.target.value)}
                 />
               </div>
 
               <div className="form-item-row horizontal-input-group">
-                <label className="form-label-bold">Merchant Name (Shop Name)</label>
+                <label className="form-label-bold">
+                  Merchant Name (Shop Name)
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. XYZ PRINT"
                   className="standard-styled-input"
                   value={config.shop_name}
-                  onChange={(e) => handleChange('shop_name', e.target.value)}
+                  onChange={(e) => handleChange("shop_name", e.target.value)}
                 />
               </div>
 
@@ -309,7 +501,9 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
                     type="number"
                     value={config.min_amount}
                     className="clean-input"
-                    onChange={(e) => handleChange('min_amount', parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      handleChange("min_amount", parseFloat(e.target.value))
+                    }
                   />
                 </div>
               </div>
@@ -319,8 +513,19 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
       </div>
 
       <div className="config-action-footer">
-        <button className={`save-config-btn ${isSaving ? 'is-loading' : ''}`} onClick={handleSave} disabled={isSaving}>
-          {isSaving ? <span className="loader-dot"></span> : <><Save size={18} /><span>Save Configuration</span></>}
+        <button
+          className={`save-config-btn ${isSaving ? "is-loading" : ""}`}
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <span className="loader-dot"></span>
+          ) : (
+            <>
+              <Save size={18} />
+              <span>Save Configuration</span>
+            </>
+          )}
         </button>
         {showSuccess && (
           <div className="save-success-toast">
@@ -329,7 +534,10 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({ activeTab = 'config' }) =
           </div>
         )}
         {error && (
-          <div className="save-error-toast" style={{ color: '#ff4444', fontWeight: '700' }}>
+          <div
+            className="save-error-toast"
+            style={{ color: "#ff4444", fontWeight: "700" }}
+          >
             <span>Error: {error}</span>
           </div>
         )}

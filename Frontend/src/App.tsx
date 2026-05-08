@@ -34,7 +34,7 @@ function App() {
       case 'dashboard':
         return <Dashboard vendorId={vendorId} />;
       case 'cod':
-        return <CODVerification />;
+        return <CODVerification vendorId={vendorId} />;
       case 'config':
       case 'upi':
       case 'settings':
