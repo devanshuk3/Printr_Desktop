@@ -594,7 +594,14 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
       </div>
 
       <style>{`
-        .config-viewport { flex: 1; padding: 48px; min-width: 0; }
+        .config-viewport { 
+          flex: 1; 
+          padding: 48px; 
+          min-width: 0; 
+          height: 100vh; 
+          overflow-y: auto; 
+          box-sizing: border-box; 
+        }
         
         .config-header { margin-bottom: 40px; }
         .config-title { font-size: 32px; font-weight: 800; color: #1a1a1a; margin: 0; font-family: 'Outfit'; }
