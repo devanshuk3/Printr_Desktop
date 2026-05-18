@@ -36,6 +36,11 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
     min_amount: 1,
     has_bw_printer: true,
     has_color_printer: false,
+    a4_price: 0,
+    a3_price: 0,
+    letter_price: 0,
+    legal_price: 0,
+    paper_sizes: "A4",
   });
 
   const [printers, setPrinters] = useState<any[]>([]);
@@ -89,6 +94,11 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
             min_amount: parseFloat(data.min_amount) || 1,
             has_bw_printer: data.has_bw_printer ?? true,
             has_color_printer: data.has_color_printer ?? false,
+            a4_price: parseFloat(data.a4_price) || 0,
+            a3_price: parseFloat(data.a3_price) || 0,
+            letter_price: parseFloat(data.letter_price) || 0,
+            legal_price: parseFloat(data.legal_price) || 0,
+            paper_sizes: data.paper_sizes || "A4",
           });
         }
       } catch (err) {
@@ -437,6 +447,46 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Paper Size Pricing Slots (Rendered ONLY for paper sizes chosen by the vendor) */}
+              {config.paper_sizes && (
+                <div className="pricing-slabs-container">
+                  <label className="form-label-bold">Paper Size Pricing</label>
+                  <div className="pricing-grid">
+                    {config.paper_sizes.split(",").map((size) => {
+                      const trimmedSize = size.trim();
+                      if (!trimmedSize) return null;
+                      const sizeKey = trimmedSize.toLowerCase();
+                      const valueKey = `${sizeKey}_price`;
+                      
+                      // Check if it is a standard paper size column we support
+                      if (!["a4", "a3", "letter", "legal"].includes(sizeKey)) return null;
+                      
+                      return (
+                        <div key={trimmedSize} className="pricing-item">
+                          <span>{trimmedSize} Price (Extra)</span>
+                          <div className="currency-input-field small-input">
+                            <span className="currency-symbol">₹</span>
+                            <input
+                              type="number"
+                              value={(config as any)[valueKey] ?? 0}
+                              step="0.5"
+                              className="clean-input"
+                              placeholder="0.00"
+                              onChange={(e) =>
+                                handleChange(
+                                  valueKey,
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="tip-box">
                 <Info size={16} className="info-icon" />
