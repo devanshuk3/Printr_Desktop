@@ -43,12 +43,12 @@ function getFileType(filePath) {
   return 'unknown';
 }
 
-ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, copies, sides }) => {
+ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, copies, sides, pageSize }) => {
   try {
     const targetPrinter = (printerName || '').trim();
     if (!targetPrinter) throw new Error("No printer name provided to native print spooler.");
 
-    console.info(`[PrintJob] Dispatching to ${targetPrinter} | Copies: ${copies || 1} | Sides: ${sides || 'one-sided'} | Color: ${isColor}`);
+    console.info(`[PrintJob] Dispatching to ${targetPrinter} | Copies: ${copies || 1} | Sides: ${sides || 'one-sided'} | Color: ${isColor} | PageSize: ${pageSize || 'A4'}`);
     
     let finalFilePath = filePath;
     const fileType = getFileType(filePath);
@@ -104,6 +104,17 @@ ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, cop
         printer: targetPrinter,
         copies: Number(copies) || 1,
       };
+
+      if (pageSize) {
+        const size = pageSize.trim();
+        const lowerSize = size.toLowerCase();
+        // pdf-to-printer expects lowercased US sizes, but A sizes can be uppercase or as-is
+        if (['letter', 'legal', 'tabloid', 'statement'].includes(lowerSize)) {
+          ptpOptions.paperSize = lowerSize;
+        } else {
+          ptpOptions.paperSize = size;
+        }
+      }
       
       console.info(`[Printer] Windows Print Spooler options (JSON):`, JSON.stringify(ptpOptions));
       
@@ -136,6 +147,11 @@ ipcMain.handle('print-file', async (event, { filePath, printerName, isColor, cop
       if (sides) {
         options.push(`-o sides=${sides}`);
       }
+
+      // 4. Page Size (media)
+      if (pageSize) {
+        options.push(`-o media=${pageSize}`);
+      }
       
       await print(finalFilePath, targetPrinter, options);
     }
@@ -153,6 +169,7 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, 'src/assets/Printr_app_icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,

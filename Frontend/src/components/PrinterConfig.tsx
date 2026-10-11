@@ -6,6 +6,103 @@ interface PrinterConfigProps {
   activeTab?: string;
 }
 
+interface PriceFieldProps {
+  field: string;
+  value: any;
+  step?: number;
+  min?: number;
+  onChange: (field: string, val: any) => void;
+}
+
+const PriceField: React.FC<PriceFieldProps> = ({
+  field,
+  value,
+  step = 0.5,
+  min = 0,
+  onChange,
+}) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value;
+    // Allow empty string, numbers, and at most one decimal point for fluid keyboard typing
+    if (rawVal === "" || /^\d*\.?\d*$/.test(rawVal)) {
+      onChange(field, rawVal);
+    }
+  };
+
+  const handleBlur = () => {
+    if (value === "" || value === undefined || value === null) {
+      onChange(field, min);
+    } else {
+      const num = parseFloat(value);
+      onChange(field, isNaN(num) ? min : Math.max(min, num));
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const current = parseFloat(value) || 0;
+      const next = Math.round((current + step) * 100) / 100;
+      onChange(field, next);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const current = parseFloat(value) || 0;
+      const next = Math.max(min, Math.round((current - step) * 100) / 100);
+      onChange(field, next);
+    }
+  };
+
+  const increment = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const current = parseFloat(value) || 0;
+    const next = Math.round((current + step) * 100) / 100;
+    onChange(field, next);
+  };
+
+  const decrement = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const current = parseFloat(value) || 0;
+    const next = Math.max(min, Math.round((current - step) * 100) / 100);
+    onChange(field, next);
+  };
+
+  return (
+    <div className="currency-input-field small-input">
+      <span className="currency-symbol">₹</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={value ?? ""}
+        className="clean-input"
+        placeholder="0"
+        onChange={handleInputChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+      />
+      <div className="stepper-arrows">
+        <button
+          type="button"
+          className="stepper-btn"
+          tabIndex={-1}
+          onClick={increment}
+          aria-label="Increase"
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          className="stepper-btn"
+          tabIndex={-1}
+          onClick={decrement}
+          aria-label="Decrease"
+        >
+          ▼
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const PrinterConfig: React.FC<PrinterConfigProps> = ({
   activeTab = "config",
 }) => {
@@ -14,7 +111,7 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Form State
-  const [config, setConfig] = useState({
+  const [config, setConfig] = useState<any>({
     auto_accept_jobs: true,
     bw_printer: "",
     color_printer: "",
@@ -112,10 +209,31 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
     setIsSaving(true);
     setError(null);
     try {
+      const payload = {
+        ...config,
+        bw_price: Number(config.bw_price) || 0,
+        bw_price_single: Number(config.bw_price_single) || 0,
+        bw_price_2_to_5: Number(config.bw_price_2_to_5) || 0,
+        bw_price_6_to_9: Number(config.bw_price_6_to_9) || 0,
+        bw_price_10_plus: Number(config.bw_price_10_plus) || 0,
+        color_price: Number(config.color_price) || 0,
+        color_price_single: Number(config.color_price_single) || 0,
+        color_price_2_to_5: Number(config.color_price_2_to_5) || 0,
+        color_price_6_to_9: Number(config.color_price_6_to_9) || 0,
+        color_price_10_plus: Number(config.color_price_10_plus) || 0,
+        hard_binding_price: Number(config.hard_binding_price) || 0,
+        spiral_binding_price: Number(config.spiral_binding_price) || 0,
+        min_amount: Number(config.min_amount) || 0,
+        a4_price: Number(config.a4_price) || 0,
+        a3_price: Number(config.a3_price) || 0,
+        letter_price: Number(config.letter_price) || 0,
+        legal_price: Number(config.legal_price) || 0,
+      };
+
       const response = await fetch(`${API_BASE_URL}/api/vendors/settings`, {
         method: "PUT",
         headers: getHeaders(),
-        body: JSON.stringify(config),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -219,90 +337,48 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
                   <div className="pricing-grid">
                     <div className="pricing-item">
                       <span>Default</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.bw_price}
-                          step="0.5"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange("bw_price", parseFloat(e.target.value))
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="bw_price"
+                        value={config.bw_price}
+                        step={0.5}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="pricing-item">
                       <span>1 Page</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.bw_price_single}
-                          step="0.5"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "bw_price_single",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="bw_price_single"
+                        value={config.bw_price_single}
+                        step={0.5}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="pricing-item">
                       <span>2-5 Pages</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.bw_price_2_to_5}
-                          step="0.5"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "bw_price_2_to_5",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="bw_price_2_to_5"
+                        value={config.bw_price_2_to_5}
+                        step={0.5}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="pricing-item">
                       <span>6-9 Pages</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.bw_price_6_to_9}
-                          step="0.5"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "bw_price_6_to_9",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="bw_price_6_to_9"
+                        value={config.bw_price_6_to_9}
+                        step={0.5}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="pricing-item">
                       <span>10+ Pages</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.bw_price_10_plus}
-                          step="0.5"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "bw_price_10_plus",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="bw_price_10_plus"
+                        value={config.bw_price_10_plus}
+                        step={0.5}
+                        onChange={handleChange}
+                      />
                     </div>
                   </div>
                 </div>
@@ -314,93 +390,48 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
                   <div className="pricing-grid">
                     <div className="pricing-item">
                       <span>Default</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.color_price}
-                          step="1"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "color_price",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="color_price"
+                        value={config.color_price}
+                        step={1}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="pricing-item">
                       <span>1 Page</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.color_price_single}
-                          step="1"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "color_price_single",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="color_price_single"
+                        value={config.color_price_single}
+                        step={1}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="pricing-item">
                       <span>2-5 Pages</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.color_price_2_to_5}
-                          step="1"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "color_price_2_to_5",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="color_price_2_to_5"
+                        value={config.color_price_2_to_5}
+                        step={1}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="pricing-item">
                       <span>6-9 Pages</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.color_price_6_to_9}
-                          step="1"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "color_price_6_to_9",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="color_price_6_to_9"
+                        value={config.color_price_6_to_9}
+                        step={1}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="pricing-item">
                       <span>10+ Pages</span>
-                      <div className="currency-input-field small-input">
-                        <span className="currency-symbol">₹</span>
-                        <input
-                          type="number"
-                          value={config.color_price_10_plus}
-                          step="1"
-                          className="clean-input"
-                          onChange={(e) =>
-                            handleChange(
-                              "color_price_10_plus",
-                              parseFloat(e.target.value),
-                            )
-                          }
-                        />
-                      </div>
+                      <PriceField
+                        field="color_price_10_plus"
+                        value={config.color_price_10_plus}
+                        step={1}
+                        onChange={handleChange}
+                      />
                     </div>
                   </div>
                 </div>
@@ -411,39 +442,21 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
                 <div className="pricing-grid">
                   <div className="pricing-item">
                     <span>Spiral Binding</span>
-                    <div className="currency-input-field small-input">
-                      <span className="currency-symbol">₹</span>
-                      <input
-                        type="number"
-                        value={config.spiral_binding_price}
-                        step="5"
-                        className="clean-input"
-                        onChange={(e) =>
-                          handleChange(
-                            "spiral_binding_price",
-                            parseFloat(e.target.value),
-                          )
-                        }
-                      />
-                    </div>
+                    <PriceField
+                      field="spiral_binding_price"
+                      value={config.spiral_binding_price}
+                      step={5}
+                      onChange={handleChange}
+                    />
                   </div>
                   <div className="pricing-item">
                     <span>Hard Binding</span>
-                    <div className="currency-input-field small-input">
-                      <span className="currency-symbol">₹</span>
-                      <input
-                        type="number"
-                        value={config.hard_binding_price}
-                        step="5"
-                        className="clean-input"
-                        onChange={(e) =>
-                          handleChange(
-                            "hard_binding_price",
-                            parseFloat(e.target.value),
-                          )
-                        }
-                      />
-                    </div>
+                    <PriceField
+                      field="hard_binding_price"
+                      value={config.hard_binding_price}
+                      step={5}
+                      onChange={handleChange}
+                    />
                   </div>
                 </div>
               </div>
@@ -453,34 +466,25 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
                 <div className="pricing-slabs-container">
                   <label className="form-label-bold">Paper Size Pricing</label>
                   <div className="pricing-grid">
-                    {config.paper_sizes.split(",").map((size) => {
+                    {config.paper_sizes.split(",").map((size: string) => {
                       const trimmedSize = size.trim();
                       if (!trimmedSize) return null;
                       const sizeKey = trimmedSize.toLowerCase();
                       const valueKey = `${sizeKey}_price`;
-                      
+
                       // Check if it is a standard paper size column we support
-                      if (!["a4", "a3", "letter", "legal"].includes(sizeKey)) return null;
-                      
+                      if (!["a4", "a3", "letter", "legal"].includes(sizeKey))
+                        return null;
+
                       return (
                         <div key={trimmedSize} className="pricing-item">
                           <span>{trimmedSize} Price (Extra)</span>
-                          <div className="currency-input-field small-input">
-                            <span className="currency-symbol">₹</span>
-                            <input
-                              type="number"
-                              value={(config as any)[valueKey] ?? 0}
-                              step="0.5"
-                              className="clean-input"
-                              placeholder="0.00"
-                              onChange={(e) =>
-                                handleChange(
-                                  valueKey,
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                            />
-                          </div>
+                          <PriceField
+                            field={valueKey}
+                            value={(config as any)[valueKey] ?? 0}
+                            step={0.5}
+                            onChange={handleChange}
+                          />
                         </div>
                       );
                     })}
@@ -545,17 +549,13 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
 
               <div className="form-item-row">
                 <label className="form-label-bold">Min. Amount</label>
-                <div className="currency-input-field small-input">
-                  <span className="currency-symbol">₹</span>
-                  <input
-                    type="number"
-                    value={config.min_amount}
-                    className="clean-input"
-                    onChange={(e) =>
-                      handleChange("min_amount", parseFloat(e.target.value))
-                    }
-                  />
-                </div>
+                <PriceField
+                  field="min_amount"
+                  value={config.min_amount}
+                  step={1}
+                  min={1}
+                  onChange={handleChange}
+                />
               </div>
             </div>
           </section>
@@ -660,14 +660,44 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
         /* Input Styles */
         .currency-input-field {
           display: flex; align-items: center; background: #F8F9FA; border: 1.5px solid #EEE;
-          border-radius: 10px; padding: 4px 12px; width: 140px; transition: border 0.2s, box-shadow 0.2s;
+          border-radius: 10px; padding: 4px 8px 4px 12px; width: 140px; transition: border 0.2s, box-shadow 0.2s;
+          box-sizing: border-box;
         }
-        .currency-input-field:focus-within { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(0,0,0,0.03); }
-        .small-input { width: 100px; }
-        .currency-symbol { color: var(--accent-blue); font-weight: 700; font-size: 16px; margin-right: 8px; }
+        .currency-input-field:focus-within { 
+          border-color: #1a1a1a; 
+          background: #FFFFFF;
+          box-shadow: 0 0 0 3px rgba(0,0,0,0.04); 
+        }
+        .small-input { width: 110px; }
+        .currency-symbol { color: var(--accent-blue); font-weight: 700; font-size: 16px; margin-right: 6px; user-select: none; }
         .clean-input { 
           background: transparent; border: none; outline: none; width: 100%; color: #1a1a1a; 
           font-weight: 700; font-size: 16px; font-family: 'Outfit';
+        }
+        .stepper-arrows {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          margin-left: 4px;
+        }
+        .stepper-btn {
+          background: transparent;
+          border: none;
+          padding: 1px 3px;
+          font-size: 7px;
+          line-height: 7px;
+          color: #94A3B8;
+          cursor: pointer;
+          border-radius: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s ease;
+          user-select: none;
+        }
+        .stepper-btn:hover {
+          color: #1E293B;
+          background: #E2E8F0;
         }
 
         .standard-styled-input {
@@ -675,7 +705,11 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
           border-radius: 10px; padding: 12px 16px; color: #1a1a1a; outline: none;
           font-weight: 500; font-size: 14px; transition: all 0.2s;
         }
-        .standard-styled-input:focus { border-color: #1a1a1a; background: white; }
+        .standard-styled-input:focus { 
+          border-color: var(--accent-blue); 
+          background: white; 
+          box-shadow: 0 0 0 3px rgba(28, 126, 214, 0.12); 
+        }
         .select-compact { background-image: none; cursor: pointer; height: 48px; margin-left: 12px; max-width: 250px; }
         .no-border { border-bottom: none; padding-bottom: 0px; }
 
@@ -688,12 +722,16 @@ const PrinterConfig: React.FC<PrinterConfigProps> = ({
 
         .config-action-footer { margin-top: 48px; display: flex; align-items: center; gap: 24px; }
         .save-config-btn {
-          background: #111; color: white; border: none; padding: 18px 36px; border-radius: 14px;
+          background: linear-gradient(135deg, #1C7ED6, #1864AB); color: white; border: none; padding: 18px 36px; border-radius: 14px;
           display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 15px; cursor: pointer;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          box-shadow: 0 10px 25px rgba(28, 126, 214, 0.25);
         }
-        .save-config-btn:hover { background: #333; transform: translateY(-2px); }
-        .save-config-btn:disabled { background: #999; transform: none; box-shadow: none; cursor: not-allowed; }
+        .save-config-btn:hover { 
+          background: linear-gradient(135deg, #1971C2, #155799); 
+          transform: translateY(-2px); 
+          box-shadow: 0 12px 30px rgba(28, 126, 214, 0.35); 
+        }
+        .save-config-btn:disabled { background: #94A3B8; transform: none; box-shadow: none; cursor: not-allowed; }
 
         .save-success-toast { display: flex; align-items: center; gap: 8px; color: var(--accent-green); font-weight: 700; animation: fadeIn 0.4s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }

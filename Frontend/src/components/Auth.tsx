@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { User, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
-import logo from '../assets/Printr_Logo_transparent_White.png';
-import { API_BASE_URL } from '../config';
+import React, { useState } from "react";
+import { User, Lock, ArrowRight, ShieldCheck } from "lucide-react";
+import logo from "../assets/Printr_app_icon.png";
+import { API_BASE_URL } from "../config";
 
 interface AuthProps {
   onLogin: (vendorId: string) => void;
@@ -9,71 +9,73 @@ interface AuthProps {
 
 const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+
   // Registration fields
-  const [fullName, setFullName] = useState('');
-  const [shopName, setShopName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [upiId, setUpiId] = useState('');
-  const [address, setAddress] = useState('');
-  const [bwPrice, setBwPrice] = useState('5.00');
-  const [colorPrice, setColorPrice] = useState('15.00');
-  const [paperSizes, setPaperSizes] = useState('A4, A3, Letter');
+  const [fullName, setFullName] = useState("");
+  const [shopName, setShopName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const [address, setAddress] = useState("");
+  const [bwPrice, setBwPrice] = useState("5.00");
+  const [colorPrice, setColorPrice] = useState("15.00");
+  const [paperSizes, setPaperSizes] = useState("A4, A3, Letter");
   const [hasBW, setHasBW] = useState(true);
   const [hasColor, setHasColor] = useState(false);
 
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     // ── Frontend validation (before network request) ──
     if (!identifier.trim()) {
-      setError('Vendor ID is required.');
+      setError("Vendor ID is required.");
       setLoading(false);
       return;
     }
 
-    if (identifier.includes(' ')) {
-      setError('Vendor ID cannot contain spaces.');
+    if (identifier.includes(" ")) {
+      setError("Vendor ID cannot contain spaces.");
       setLoading(false);
       return;
     }
 
     if (!/^[a-zA-Z0-9_-]+$/.test(identifier.trim())) {
-      setError('Vendor ID can only contain letters, numbers, hyphens, and underscores.');
+      setError(
+        "Vendor ID can only contain letters, numbers, hyphens, and underscores.",
+      );
       setLoading(false);
       return;
     }
 
     if (!isLogin) {
       if (password.length < 8) {
-        setError('Password must be at least 8 characters long.');
+        setError("Password must be at least 8 characters long.");
         setLoading(false);
         return;
       }
       if (!fullName.trim()) {
-        setError('Full name is required.');
+        setError("Full name is required.");
         setLoading(false);
         return;
       }
       if (!shopName.trim()) {
-        setError('Shop name is required.');
+        setError("Shop name is required.");
         setLoading(false);
         return;
       }
     }
 
-    const endpoint = isLogin ? '/api/vendors/login' : '/api/vendors/register';
-    const payload = isLogin 
+    const endpoint = isLogin ? "/api/vendors/login" : "/api/vendors/register";
+    const payload = isLogin
       ? { vendor_id: identifier.trim(), password: password }
-      : { 
-          vendor_id: identifier.trim(), 
+      : {
+          vendor_id: identifier.trim(),
           password: password,
           full_name: fullName.trim(),
           shop_name: shopName.trim(),
@@ -84,17 +86,19 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           color_price: hasColor ? parseFloat(colorPrice) || 0 : 0,
           paper_sizes: paperSizes.trim() || null,
           has_bw_printer: hasBW,
-          has_color_printer: hasColor
+          has_color_printer: hasColor,
         };
 
     try {
-      console.log(`[Auth] Attempting ${isLogin ? 'Login' : 'Register'} at: ${API_BASE_URL}${endpoint}`);
+      console.log(
+        `[Auth] Attempting ${isLogin ? "Login" : "Register"} at: ${API_BASE_URL}${endpoint}`,
+      );
       console.log(`[Auth] Payload:`, JSON.stringify(payload, null, 2));
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -102,33 +106,56 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
       if (response.status === 200 || response.status === 201) {
         if (data.success && data.token) {
-          localStorage.setItem('printr_token', data.token);
-          localStorage.setItem('printr_vendor_id', data.vendor_id || identifier);
+          localStorage.setItem("printr_token", data.token);
+          localStorage.setItem(
+            "printr_vendor_id",
+            data.vendor_id || identifier,
+          );
           onLogin(data.vendor_id || identifier);
         } else {
-          setError(data.message || data.detail || 'Authentication failed. Please check your credentials.');
+          setError(
+            data.message ||
+              data.detail ||
+              "Authentication failed. Please check your credentials.",
+          );
         }
       } else if (response.status === 423) {
         // Account Locked
-        setError(data.message || data.detail || 'Account is temporarily locked due to too many failed attempts.');
+        setError(
+          data.message ||
+            data.detail ||
+            "Account is temporarily locked due to too many failed attempts.",
+        );
       } else if (response.status === 400 && data.errors) {
         // Validation Errors from Zod
-        const detailedError = data.errors.map((e: any) => `${e.field}: ${e.message}`).join('; ');
+        const detailedError = data.errors
+          .map((e: any) => `${e.field}: ${e.message}`)
+          .join("; ");
         setError(`Validation Error: ${detailedError}`);
       } else if (response.status === 409) {
-        setError(data.message || 'This Vendor ID is already registered. Please choose a different one.');
+        setError(
+          data.message ||
+            "This Vendor ID is already registered. Please choose a different one.",
+        );
       } else if (response.status === 401) {
-        setError(data.message || data.detail || 'Invalid Vendor ID or Password.');
+        setError(
+          data.message || data.detail || "Invalid Vendor ID or Password.",
+        );
       } else {
         // For 500 and other errors, show message + detail if available
         const errorParts = [data.message];
         if (data.detail && data.detail !== data.message) {
           errorParts.push(data.detail);
         }
-        setError(errorParts.filter(Boolean).join(' — ') || `Server error (${response.status}). Please try again later.`);
+        setError(
+          errorParts.filter(Boolean).join(" — ") ||
+            `Server error (${response.status}). Please try again later.`,
+        );
       }
     } catch (err: any) {
-      setError(`Connection failed: ${err.message}. Please check your internet connection or try again later.`);
+      setError(
+        `Connection failed: ${err.message}. Please check your internet connection or try again later.`,
+      );
     } finally {
       setLoading(false);
     }
@@ -137,13 +164,21 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   return (
     <div className="auth-fullscreen-bg">
       <div className="auth-centered-box">
-        <div className={`auth-inner-card white-shadow-card ${!isLogin ? 'registration-mode' : ''}`}>
+        <div
+          className={`auth-inner-card white-shadow-card ${!isLogin ? "registration-mode" : ""}`}
+        >
           <div className="auth-brand">
             <div className="auth-icon-wrap">
-               <img src={logo} alt="Printr" className="auth-logo-symbol" />
+              <img src={logo} alt="Printr" className="auth-logo-symbol" />
             </div>
-            <h1 className="auth-title">{isLogin ? 'Printr Login' : 'Partner Registration'}</h1>
-            <p className="auth-subtitle">{isLogin ? 'Enterprise Management' : 'Please provide your details to register as a partner'}</p>
+            <h1 className="auth-title">
+              {isLogin ? "Printr Login" : "Partner Registration"}
+            </h1>
+            <p className="auth-subtitle">
+              {isLogin
+                ? "Enterprise Management"
+                : "Please provide your details to register as a partner"}
+            </p>
           </div>
 
           <div className="auth-form-container">
@@ -152,104 +187,110 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 <label className="auth-label">VENDOR ID</label>
                 <div className="auth-input-group">
                   <User size={18} className="auth-icon-left" />
-                  <input 
-                    type="text" 
-                    placeholder="Enter Unique ID" 
+                  <input
+                    type="text"
+                    placeholder="Enter Unique ID"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     className="auth-text-input"
-                    required 
+                    required
                   />
                 </div>
-                {!isLogin && <p className="field-hint">* This will be your unique merchant username</p>}
+                {!isLogin && (
+                  <p className="field-hint">
+                    * This will be your unique merchant username
+                  </p>
+                )}
               </div>
 
               <div className="auth-field">
                 <label className="auth-label">PASSWORD</label>
                 <div className="auth-input-group">
                   <Lock size={18} className="auth-icon-left" />
-                  <input 
-                    type="password" 
-                    placeholder="Enter Password" 
+                  <input
+                    type="password"
+                    placeholder="Enter Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="auth-text-input"
                     minLength={isLogin ? 1 : 8}
-                    required 
+                    required
                   />
                 </div>
-                {!isLogin && <p className="field-hint">* Minimum 8 characters required</p>}
+                {!isLogin && (
+                  <p className="field-hint">* Minimum 8 characters required</p>
+                )}
               </div>
 
               {!isLogin && (
                 <>
                   <div className="auth-field">
                     <label className="auth-label">FULL NAME</label>
-                    <input 
-                      type="text" 
-                      placeholder="Enter Your Full Name" 
-                      className="auth-text-input bare" 
+                    <input
+                      type="text"
+                      placeholder="Enter Your Full Name"
+                      className="auth-text-input bare"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      required 
+                      required
                     />
                   </div>
 
                   <div className="auth-field">
                     <label className="auth-label">SHOP NAME</label>
-                    <input 
-                      type="text" 
-                      placeholder="Enter Business/Shop Name" 
-                      className="auth-text-input bare" 
+                    <input
+                      type="text"
+                      placeholder="Enter Business/Shop Name"
+                      className="auth-text-input bare"
                       value={shopName}
                       onChange={(e) => setShopName(e.target.value)}
-                      required 
+                      required
                     />
                   </div>
 
                   <div className="auth-field">
                     <label className="auth-label">PHONE</label>
-                    <input 
-                      type="text" 
-                      placeholder="Enter 10-digit mobile number" 
-                      className="auth-text-input bare" 
+                    <input
+                      type="text"
+                      placeholder="Enter 10-digit mobile number"
+                      className="auth-text-input bare"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      required 
+                      required
                     />
                   </div>
 
                   <div className="auth-field">
                     <label className="auth-label">UPI ID</label>
-                    <input 
-                      type="text" 
-                      placeholder="merchant@upi" 
-                      className="auth-text-input bare" 
+                    <input
+                      type="text"
+                      placeholder="merchant@upi"
+                      className="auth-text-input bare"
                       value={upiId}
                       onChange={(e) => setUpiId(e.target.value)}
-                      required 
+                      required
                     />
                   </div>
 
                   <div className="auth-field">
                     <label className="auth-label">ADDRESS</label>
-                    <input 
-                      type="text" 
-                      placeholder="Enter complete shop address" 
-                      className="auth-text-input bare" 
+                    <input
+                      type="text"
+                      placeholder="Enter complete shop address"
+                      className="auth-text-input bare"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      required 
+                      required
                     />
                   </div>
 
                   <div className="auth-field-row">
                     <div className="auth-field half">
                       <label className="auth-label">B/W PRICE</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 5.00" 
-                        className={`auth-text-input bare ${!hasBW ? 'disabled' : ''}`} 
+                      <input
+                        type="text"
+                        placeholder="e.g. 5.00"
+                        className={`auth-text-input bare ${!hasBW ? "disabled" : ""}`}
                         value={bwPrice}
                         onChange={(e) => setBwPrice(e.target.value)}
                         required={hasBW}
@@ -258,10 +299,10 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     </div>
                     <div className="auth-field half">
                       <label className="auth-label">COLOR PRICE</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 15.00" 
-                        className={`auth-text-input bare ${!hasColor ? 'disabled' : ''}`} 
+                      <input
+                        type="text"
+                        placeholder="e.g. 15.00"
+                        className={`auth-text-input bare ${!hasColor ? "disabled" : ""}`}
                         value={colorPrice}
                         onChange={(e) => setColorPrice(e.target.value)}
                         required={hasColor}
@@ -272,8 +313,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
                   <div className="auth-field-row">
                     <div className="auth-checkbox-field">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         id="hasBW"
                         checked={hasBW}
                         onChange={(e) => setHasBW(e.target.checked)}
@@ -281,8 +322,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                       <label htmlFor="hasBW">Has B/W Printer</label>
                     </div>
                     <div className="auth-checkbox-field">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         id="hasColor"
                         checked={hasColor}
                         onChange={(e) => setHasColor(e.target.checked)}
@@ -292,14 +333,16 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   </div>
 
                   <div className="auth-field">
-                    <label className="auth-label">PAPER SIZES (COMMA SEPARATED)</label>
-                    <input 
-                      type="text" 
-                      placeholder="A4, A3, letter" 
-                      className="auth-text-input bare" 
+                    <label className="auth-label">
+                      PAPER SIZES (COMMA SEPARATED)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="A4, A3, letter"
+                      className="auth-text-input bare"
                       value={paperSizes}
                       onChange={(e) => setPaperSizes(e.target.value)}
-                      required 
+                      required
                     />
                   </div>
                 </>
@@ -307,24 +350,37 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
               {error && <div className="auth-error-hint">{error}</div>}
 
-              <button type="submit" className="auth-submit-btn" disabled={loading}>
-                <span>{loading ? 'Processing...' : isLogin ? 'Sign In to Dashboard' : 'Create Account'}</span>
+              <button
+                type="submit"
+                className="auth-submit-btn"
+                disabled={loading}
+              >
+                <span>
+                  {loading
+                    ? "Processing..."
+                    : isLogin
+                      ? "Sign In to Dashboard"
+                      : "Create Account"}
+                </span>
                 <ArrowRight size={20} />
               </button>
             </form>
           </div>
 
           <div className="auth-bottom-nav">
-             <div className="security-tag">
-                <ShieldCheck size={14} />
-                <span>Secure Cloud connection</span>
-             </div>
-             <p className="auth-switch-prompt">
-                {isLogin ? "Need access?" : "Have an account?"}{' '}
-                <button onClick={() => setIsLogin(!isLogin)} className="auth-switch-btn">
-                  {isLogin ? 'Request Registration' : 'Back to Login'}
-                </button>
-             </p>
+            <div className="security-tag">
+              <ShieldCheck size={14} />
+              <span>Secure Cloud connection</span>
+            </div>
+            <p className="auth-switch-prompt">
+              {isLogin ? "Need access?" : "Have an account?"}{" "}
+              <button
+                onClick={() => setIsLogin(!isLogin)}
+                className="auth-switch-btn"
+              >
+                {isLogin ? "Request Registration" : "Back to Login"}
+              </button>
+            </p>
           </div>
         </div>
       </div>
@@ -383,17 +439,19 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         .auth-form-container::-webkit-scrollbar-thumb:hover { background: #DDD; }
 
         .auth-icon-wrap { 
-          width: 70px; 
-          height: 70px; 
-          background: #000; 
-          border-radius: 20px; 
+          width: 84px; 
+          height: 84px; 
+          background: #FFFFFF; 
+          border: 1.5px solid rgba(28, 126, 214, 0.25);
+          border-radius: 24px; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
           margin: 0 auto 20px; 
-          box-shadow: 0 10px 20px rgba(0,0,0,0.1); 
+          box-shadow: 0 10px 25px rgba(28, 126, 214, 0.15); 
+          overflow: hidden;
         }
-        .auth-logo-symbol { width: 45px; }
+        .auth-logo-symbol { width: 72px; height: 72px; object-fit: contain; }
 
         .auth-title { font-size: 26px; font-weight: 800; color: #111; margin: 0; font-family: 'Outfit'; }
         .auth-subtitle { color: #888; font-size: 14px; margin-top: 6px; font-weight: 500; line-height: 1.4; }
@@ -419,7 +477,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         }
         
         .auth-text-input.bare { padding: 16px 20px; }
-        .auth-text-input:focus { border-color: #000; background: white; box-shadow: 0 8px 24px rgba(0,0,0,0.04); }
+        .auth-text-input:focus { border-color: #1C7ED6; background: white; box-shadow: 0 0 0 4px rgba(28, 126, 214, 0.12); }
         .auth-text-input.disabled { background: #EEE; cursor: not-allowed; opacity: 0.6; }
 
         .field-hint { font-size: 11px; color: #999; margin-top: 6px; font-weight: 500; font-style: italic; }
@@ -438,7 +496,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         .auth-checkbox-field input[type="checkbox"] {
           width: 20px;
           height: 20px;
-          accent-color: #000;
+          accent-color: #1C7ED6;
           cursor: pointer;
         }
 
@@ -452,21 +510,21 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         .auth-error-hint { background: #fff5f5; color: #c92a2a; padding: 12px; border-radius: 12px; font-size: 13px; font-weight: 600; margin-bottom: 24px; text-align: center; border: 1px solid #ffc9c9; }
 
         .auth-submit-btn {
-          width: 100%; background: #222; color: white; border: none; padding: 16px;
+          width: 100%; background: linear-gradient(135deg, #1C7ED6, #1864AB); color: white; border: none; padding: 16px;
           border-radius: 14px; font-weight: 700; font-size: 15px; cursor: pointer;
           display: flex; align-items: center; justify-content: center; gap: 12px;
-          box-shadow: 0 8px 25px rgba(0,0,0,0.1); transition: all 0.2s;
+          box-shadow: 0 8px 25px rgba(28, 126, 214, 0.25); transition: all 0.2s;
           margin-top: 10px;
         }
-        .auth-submit-btn:hover { background: #000; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        .auth-submit-btn:hover { background: linear-gradient(135deg, #1971C2, #155799); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(28, 126, 214, 0.35); }
         .auth-submit-btn:active { transform: translateY(0); }
 
         .auth-bottom-nav { margin-top: 20px; border-top: 1px solid #F0F0F0; padding-top: 24px; }
         .security-tag { display: flex; align-items: center; justify-content: center; gap: 8px; color: #10B981; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; margin-bottom: 16px; }
 
         .auth-switch-prompt { font-size: 13px; color: #888; margin: 0; }
-        .auth-switch-btn { background: none; border: none; color: #000; font-weight: 800; cursor: pointer; padding: 4px; border-bottom: 1.5px solid #000; margin-left: 6px; }
-        .auth-switch-btn:hover { background: #F8F9FA; opacity: 0.8; }
+        .auth-switch-btn { background: none; border: none; color: #1C7ED6; font-weight: 800; cursor: pointer; padding: 4px; border-bottom: 1.5px solid #1C7ED6; margin-left: 6px; }
+        .auth-switch-btn:hover { background: #EFF6FF; opacity: 0.9; }
 
         @keyframes authScaleIn {
           from { opacity: 0; transform: scale(0.95) translateY(10px); }

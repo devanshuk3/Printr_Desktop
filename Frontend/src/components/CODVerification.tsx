@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, History } from "lucide-react";
+import { Search, History, CheckCircle, Printer, XCircle, FileText } from "lucide-react";
 import { API_BASE_URL, getHeaders } from "../config";
 
 interface CODVerificationProps {
@@ -10,11 +10,37 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
   const [orderId, setOrderId] = useState("");
   const [activities, setActivities] = useState<any[]>([]);
   const [codOrders, setCodOrders] = useState<any[]>([]);
+  const [allOrders, setAllOrders] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [vendorConfig, setVendorConfig] = useState({
+    bw_printer: "",
+    color_printer: "",
+  });
   const [message, setMessage] = useState<{
     text: string;
     type: "success" | "error";
   } | null>(null);
+
+  const fetchVendorConfig = async () => {
+    try {
+      const token = localStorage.getItem("printr_token");
+      if (!token) return;
+      const response = await fetch(`${API_BASE_URL}/api/vendors/settings/me`, {
+        headers: getHeaders(),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setVendorConfig({
+          bw_printer: data.bw_printer || "",
+          color_printer: data.color_printer || "",
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch vendor printer settings in COD:", err);
+    }
+  };
 
   const fetchCODOrders = async () => {
     try {
@@ -28,9 +54,15 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
       );
       if (response.ok) {
         const data = await response.json();
-        const codOnly = (data.files || []).filter((o: any) => {
+        const files = data.files || [];
+        setAllOrders(files);
+        const codOnly = files.filter((o: any) => {
           const method = (o.payment_method || "").toLowerCase();
-          return method === "cash on delivery" || method === "cod";
+          return (
+            method === "cash on delivery" ||
+            method === "cod" ||
+            method === "cash"
+          );
         });
         setCodOrders(codOnly);
       }
@@ -57,6 +89,7 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
   };
 
   useEffect(() => {
+    fetchVendorConfig();
     fetchHistory();
     fetchCODOrders();
     const interval = setInterval(() => {
@@ -64,10 +97,33 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
       fetchCODOrders();
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [vendorId]);
 
-  const handleUpdateStatus = async (status: "printed" | "rejected") => {
-    if (!orderId) {
+  // Clean and find the selected order record
+  const cleanId = orderId.replace(/^[#\s]+/, "").replace(/^ORD-?/i, "").trim();
+  const selectedOrder =
+    codOrders.find(
+      (o: any) =>
+        String(o.id) === cleanId ||
+        String(o.id) === orderId.trim() ||
+        String(o.order_id || "") === cleanId,
+    ) ||
+    allOrders.find(
+      (o: any) =>
+        String(o.id) === cleanId ||
+        String(o.id) === orderId.trim() ||
+        String(o.order_id || "") === cleanId,
+    );
+
+  const handleSelectOrder = (id: string | number) => {
+    const targetIdStr = String(id);
+    setOrderId(targetIdStr);
+    setIsVerified(false);
+    setMessage(null);
+  };
+
+  const handleVerify = async () => {
+    if (!orderId.trim()) {
       setMessage({ text: "Please enter an Order ID", type: "error" });
       return;
     }
@@ -75,8 +131,7 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
     setIsProcessing(true);
     setMessage(null);
 
-    // Remove '#' if users prefix it (mock was #ORD-7721)
-    const numericId = orderId.replace(/^.*(\d+)$/, "$1");
+    const targetId = selectedOrder ? selectedOrder.id : cleanId;
 
     try {
       const response = await fetch(
@@ -85,8 +140,191 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
           method: "POST",
           headers: getHeaders(),
           body: JSON.stringify({
-            orderId: numericId,
-            status: status,
+            orderId: targetId,
+            status: "printed",
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setIsVerified(true);
+        setMessage({
+          text: `Order #${targetId} verified successfully! You can now print the document.`,
+          type: "success",
+        });
+        fetchHistory();
+        fetchCODOrders();
+      } else {
+        setMessage({
+          text: data.message || `Failed to verify order #${targetId}`,
+          type: "error",
+        });
+      }
+    } catch (err: any) {
+      setMessage({ text: `Network error: ${err.message}`, type: "error" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!orderId.trim()) {
+      setMessage({ text: "Please enter or select an Order ID to print", type: "error" });
+      return;
+    }
+
+    if (!selectedOrder) {
+      setMessage({
+        text: `Could not find document details for Order #${cleanId}. Please check the ID.`,
+        type: "error",
+      });
+      return;
+    }
+
+    const key = selectedOrder.file_key || (selectedOrder as any).fileKey;
+    const name = selectedOrder.file_name || (selectedOrder as any).fileName || "document";
+    const isColor = selectedOrder.is_color || false;
+
+    if (!key) {
+      setMessage({
+        text: "File key is missing for this order record.",
+        type: "error",
+      });
+      return;
+    }
+
+    setIsPrinting(true);
+    setMessage(null);
+
+    try {
+      // 1. Get secure download link from backend
+      const response = await fetch(`${API_BASE_URL}/api/vendors/download`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          file_key: key,
+          id: selectedOrder.id,
+        }),
+      }).catch((err) => {
+        throw new Error(`Backend unreachable: ${err.message}`);
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.downloadUrl) {
+        throw new Error(
+          data.message || "Failed to retrieve secure download link from server.",
+        );
+      }
+
+      // 2. Download binary
+      const fileResp = await fetch(data.downloadUrl).catch((err) => {
+        throw new Error(`Download failed: ${err.message}`);
+      });
+
+      if (!fileResp.ok) {
+        throw new Error(`Storage access rejected (${fileResp.status}).`);
+      }
+
+      const arrayBuffer = await fileResp.arrayBuffer();
+      const buffer = new Uint8Array(arrayBuffer);
+
+      // 3. Spool to Electron printer or open in viewer
+      const isElectron =
+        typeof window !== "undefined" && (window as any).require;
+
+      if (isElectron) {
+        const path = (window as any).require("path");
+        const fs = (window as any).require("fs");
+        const os = (window as any).require("os");
+        const { shell, ipcRenderer } = (window as any).require("electron");
+
+        const tempPath = path.join(os.tmpdir(), `printr_cod_${name}`);
+        fs.writeFileSync(tempPath, buffer);
+
+        const printerName = isColor
+          ? vendorConfig.color_printer
+          : vendorConfig.bw_printer;
+
+        if (printerName) {
+          const printResult = await ipcRenderer.invoke("print-file", {
+            filePath: tempPath,
+            printerName,
+            isColor: isColor,
+            copies:
+              selectedOrder.copies && selectedOrder.copies > 1
+                ? selectedOrder.copies
+                : 1,
+            sides: "one-sided",
+            pageSize: selectedOrder.page_size || "A4",
+          });
+
+          if (!printResult.success) {
+            throw new Error(
+              printResult.error || "Printer spooler encountered an issue.",
+            );
+          }
+
+          setMessage({
+            text: `Order #${selectedOrder.id} successfully sent to printer (${printerName})!`,
+            type: "success",
+          });
+        } else {
+          shell.openPath(tempPath);
+          setMessage({
+            text: `Order #${selectedOrder.id} document opened for printing.`,
+            type: "success",
+          });
+        }
+      } else {
+        const blob = new Blob([buffer], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setMessage({
+          text: `Order #${selectedOrder.id} opened in new window.`,
+          type: "success",
+        });
+      }
+
+      // Mark as printed in legacy table
+      await fetch(`${API_BASE_URL}/api/vendors/printed-legacy`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ id: selectedOrder.id }),
+      }).catch(() => {});
+
+      setIsVerified(true);
+      fetchHistory();
+      fetchCODOrders();
+    } catch (err: any) {
+      console.error("Print execution failed:", err);
+      setMessage({ text: `Print failed: ${err.message}`, type: "error" });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!orderId.trim()) {
+      setMessage({ text: "Please enter an Order ID to reject", type: "error" });
+      return;
+    }
+
+    setIsProcessing(true);
+    setMessage(null);
+
+    const targetId = selectedOrder ? selectedOrder.id : cleanId;
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/vendors/update-order-status`,
+        {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify({
+            orderId: targetId,
+            status: "rejected",
           }),
         },
       );
@@ -95,20 +333,21 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
 
       if (response.ok) {
         setMessage({
-          text: `Order ${numericId} marked as ${status} successfully`,
+          text: `Order #${targetId} marked as rejected.`,
           type: "success",
         });
         setOrderId("");
+        setIsVerified(false);
         fetchHistory();
         fetchCODOrders();
       } else {
         setMessage({
-          text: data.message || `Failed to update order ${numericId}`,
+          text: data.message || `Failed to reject order #${targetId}`,
           type: "error",
         });
       }
     } catch (err: any) {
-      setMessage({ text: err.message, type: "error" });
+      setMessage({ text: `Error: ${err.message}`, type: "error" });
     } finally {
       setIsProcessing(false);
     }
@@ -133,26 +372,30 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
           {codOrders.length === 0 ? (
             <p className="no-cod">No pending COD orders</p>
           ) : (
-            codOrders.map((order) => (
-              <div
-                key={order.id}
-                className="cod-order-item"
-                onClick={() => setOrderId(order.id.toString())}
-              >
-                <div className="cod-order-main">
-                  <span className="order-id">#{order.id}</span>
-                  <span className="order-cost">
-                    ₹{Number(order.total_amount).toFixed(2)}
-                  </span>
+            codOrders.map((order) => {
+              const isSelected =
+                orderId === order.id.toString() || cleanId === String(order.id);
+              return (
+                <div
+                  key={order.id}
+                  className={`cod-order-item ${isSelected ? "selected" : ""}`}
+                  onClick={() => handleSelectOrder(order.id)}
+                >
+                  <div className="cod-order-main">
+                    <span className="order-id">#{order.id}</span>
+                    <span className="order-cost">
+                      ₹{Number(order.total_amount).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="cod-order-footer">
+                    <span className="order-sender">
+                      {order.sender_name || "Customer"}
+                    </span>
+                    <span className="order-pages">{order.page_count} pages</span>
+                  </div>
                 </div>
-                <div className="cod-order-footer">
-                  <span className="order-sender">
-                    {order.sender_name || "User"}
-                  </span>
-                  <span className="order-pages">{order.page_count} pages</span>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -160,7 +403,7 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
       <div className="cod-main glass-panel">
         <div className="cod-card">
           <div className="cod-icon-header">
-            <Search size={48} className="search-pulse" />
+            <Search size={44} className="search-pulse" />
           </div>
           <h2>Transaction Verification</h2>
           <p>
@@ -170,38 +413,116 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
           <div className="input-group">
             <input
               type="text"
-              placeholder="e.g. #721"
+              placeholder="e.g. #7721"
               value={orderId}
-              onChange={(e) => setOrderId(e.target.value)}
+              onChange={(e) => {
+                setOrderId(e.target.value);
+                setIsVerified(false);
+                setMessage(null);
+              }}
               className="cod-input"
-              disabled={isProcessing}
+              disabled={isProcessing || isPrinting}
             />
           </div>
 
+          {selectedOrder && (
+            <div className="order-preview-card">
+              <div className="order-preview-header">
+                <div className="order-preview-id">
+                  <FileText size={16} />
+                  <span>Order #{selectedOrder.id}</span>
+                </div>
+                <span
+                  className={`order-status-badge ${
+                    isVerified ||
+                    selectedOrder.status?.toLowerCase() === "printed"
+                      ? "verified"
+                      : "pending"
+                  }`}
+                >
+                  {isVerified ||
+                  selectedOrder.status?.toLowerCase() === "printed"
+                    ? "Verified ✓"
+                    : "Pending Payment"}
+                </span>
+              </div>
+              <div className="order-preview-body">
+                <div className="order-preview-row">
+                  <span className="preview-label">File:</span>
+                  <span className="preview-val file-val">
+                    {selectedOrder.file_name ||
+                      (selectedOrder as any).fileName ||
+                      "Document"}
+                  </span>
+                </div>
+                <div className="order-preview-row">
+                  <span className="preview-label">Customer:</span>
+                  <span className="preview-val">
+                    {selectedOrder.sender_name || "Customer"}
+                  </span>
+                </div>
+                <div className="order-preview-row">
+                  <span className="preview-label">Amount:</span>
+                  <span className="preview-val cost-val">
+                    ₹{Number(selectedOrder.total_amount).toFixed(2)}
+                  </span>
+                </div>
+                <div className="order-preview-row">
+                  <span className="preview-label">Print Specs:</span>
+                  <span className="preview-val">
+                    {selectedOrder.page_count} pages •{" "}
+                    {selectedOrder.is_color ? "Color" : "B&W"}{" "}
+                    {selectedOrder.copies > 1
+                      ? `• ${selectedOrder.copies} copies`
+                      : ""}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="cod-actions">
             <button
-              className="reject-btn"
-              onClick={() => handleUpdateStatus("rejected")}
-              disabled={isProcessing}
+              className={`action-btn verify-btn ${isVerified ? "is-verified" : ""}`}
+              onClick={handleVerify}
+              disabled={isProcessing || isPrinting || !orderId.trim()}
             >
-              Reject Order
+              <CheckCircle size={18} />
+              <span>
+                {isProcessing
+                  ? "Verifying..."
+                  : isVerified
+                    ? "Verified ✓"
+                    : "Verify Order"}
+              </span>
             </button>
+
             <button
-              className="verify-btn"
-              onClick={() => handleUpdateStatus("printed")}
-              disabled={isProcessing}
+              className="action-btn print-btn"
+              onClick={handlePrint}
+              disabled={isPrinting || isProcessing || !orderId.trim()}
             >
-              {isProcessing ? "Processing..." : "Verify & Process Print"}
+              <Printer size={18} />
+              <span>
+                {isPrinting ? "Spooling Print..." : "Print Files"}
+              </span>
+            </button>
+          </div>
+
+          <div className="cod-secondary-actions">
+            <button
+              className="reject-link-btn"
+              onClick={handleReject}
+              disabled={isProcessing || isPrinting || !orderId.trim()}
+            >
+              <XCircle size={14} />
+              <span>Reject Order</span>
             </button>
           </div>
 
           {message && (
             <div
-              style={{
-                marginTop: "20px",
-                color: message.type === "success" ? "#10B981" : "#EF4444",
-                fontWeight: "bold",
-              }}
+              className={`cod-feedback-toast ${message.type === "success" ? "toast-success" : "toast-error"}`}
             >
               {message.text}
             </div>
@@ -366,25 +687,26 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
           100% { transform: scale(1); opacity: 1; }
         }
 
-        .cod-card h2 { font-size: 28px; margin-bottom: 12px; color: var(--text-primary); font-weight: 700; }
-        .cod-card p { color: var(--text-secondary); margin-bottom: 40px; }
+        .cod-card h2 { font-size: 26px; margin-bottom: 8px; color: var(--text-primary); font-weight: 700; }
+        .cod-card p { color: var(--text-secondary); margin-bottom: 24px; font-size: 14px; }
 
         .input-group {
           position: relative;
-          margin-bottom: 40px;
+          margin-bottom: 20px;
         }
 
         .cod-input {
           width: 100%;
           background: var(--input-bg);
           border: 1px solid var(--input-border);
-          padding: 20px 24px;
-          border-radius: 16px;
+          padding: 16px 20px;
+          border-radius: 14px;
           color: var(--text-primary);
-          font-size: 18px;
-          font-family: 'Outfit';
+          font-size: 17px;
+          font-family: inherit;
           outline: none;
-          transition: all 0.3s ease;
+          transition: all 0.25s ease;
+          box-sizing: border-box;
         }
 
         .cod-input:focus {
@@ -393,53 +715,218 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
            box-shadow: 0 0 0 4px rgba(28, 126, 214, 0.15);
         }
 
-        .input-glow {
-          position: absolute;
-          top: 0; left: 0; right: 0; bottom: 0;
+        .cod-order-item.selected {
+          background: rgba(28, 126, 214, 0.1);
+          border-color: var(--accent-blue);
+          box-shadow: 0 2px 8px rgba(28, 126, 214, 0.15);
+        }
+
+        /* Order Preview Card */
+        .order-preview-card {
+          background: #ffffff;
+          border: 1px solid var(--panel-border);
           border-radius: 16px;
-          box-shadow: 0 0 20px rgba(59, 130, 246, 0);
-          pointer-events: none;
-          transition: all 0.3s ease;
+          padding: 18px 20px;
+          margin-bottom: 24px;
+          text-align: left;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+          animation: slideDown 0.2s ease-out;
         }
 
-        .cod-input:focus + .input-glow {
-          box-shadow: 0 0 30px rgba(59, 130, 246, 0.1);
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-6px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
+        .order-preview-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--panel-border);
+          margin-bottom: 12px;
+        }
+
+        .order-preview-id {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 700;
+          color: var(--accent-blue);
+          font-size: 15px;
+        }
+
+        .order-status-badge {
+          font-size: 11px;
+          font-weight: 600;
+          padding: 4px 10px;
+          border-radius: 20px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .order-status-badge.pending {
+          background: rgba(245, 159, 0, 0.12);
+          color: #d97706;
+          border: 1px solid rgba(245, 159, 0, 0.3);
+        }
+
+        .order-status-badge.verified {
+          background: rgba(12, 166, 120, 0.12);
+          color: #0ca678;
+          border: 1px solid rgba(12, 166, 120, 0.3);
+        }
+
+        .order-preview-body {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .order-preview-row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 13px;
+        }
+
+        .preview-label {
+          color: var(--text-secondary);
+        }
+
+        .preview-val {
+          color: var(--text-primary);
+          font-weight: 600;
+        }
+
+        .preview-val.file-val {
+          max-width: 260px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .preview-val.cost-val {
+          color: var(--accent-blue);
+          font-size: 14px;
+        }
+
+        /* Action Buttons */
         .cod-actions {
           display: flex;
-          gap: 16px;
+          gap: 14px;
+          margin-bottom: 16px;
         }
 
-        .reject-btn {
+        .action-btn {
           flex: 1;
-          padding: 16px;
-          border-radius: 14px;
-          background: transparent;
-          border: 1px solid var(--accent-red);
-          color: var(--accent-red);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 14px 18px;
+          border-radius: 12px;
+          font-size: 14px;
           font-weight: 600;
           cursor: pointer;
+          border: none;
+          transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .action-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none !important;
+          box-shadow: none !important;
+        }
+
+        .verify-btn {
+          background: #0ca678;
+          color: #ffffff;
+          box-shadow: 0 4px 12px rgba(12, 166, 120, 0.25);
+        }
+
+        .verify-btn:hover:not(:disabled) {
+          background: #099268;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(12, 166, 120, 0.35);
+        }
+
+        .verify-btn.is-verified {
+          background: rgba(12, 166, 120, 0.15);
+          color: #0ca678;
+          border: 1px solid rgba(12, 166, 120, 0.35);
+          box-shadow: none;
+        }
+
+        .print-btn {
+          background: var(--accent-blue);
+          color: #ffffff;
+          box-shadow: 0 4px 14px rgba(28, 126, 214, 0.3);
+        }
+
+        .print-btn:hover:not(:disabled) {
+          background: var(--accent-blue-hover);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(28, 126, 214, 0.4);
+        }
+
+        .cod-secondary-actions {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+
+        .reject-link-btn {
+          background: transparent;
+          border: none;
+          color: var(--accent-red);
+          font-size: 13px;
+          font-weight: 500;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          padding: 6px 12px;
+          border-radius: 8px;
           transition: all 0.2s ease;
         }
 
-        .reject-btn:hover { background: rgba(224, 49, 49, 0.08); }
-
-        .verify-btn {
-          flex: 2;
-          padding: 16px;
-          border-radius: 14px;
-          background: var(--accent-green);
-          border: none;
-          color: white;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          box-shadow: 0 4px 15px rgba(12, 166, 120, 0.3);
+        .reject-link-btn:hover:not(:disabled) {
+          background: rgba(224, 49, 49, 0.08);
         }
 
-        .verify-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(12, 166, 120, 0.4); }
-        .verify-btn:active { transform: translateY(0) scale(0.98); }
+        .reject-link-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        /* Feedback Toast */
+        .cod-feedback-toast {
+          padding: 12px 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 500;
+          text-align: center;
+          line-height: 1.4;
+          animation: fadeIn 0.2s ease-in;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .cod-feedback-toast.toast-success {
+          background: rgba(12, 166, 120, 0.1);
+          color: #099268;
+          border: 1px solid rgba(12, 166, 120, 0.25);
+        }
+
+        .cod-feedback-toast.toast-error {
+          background: rgba(224, 49, 49, 0.1);
+          color: #c92a2a;
+          border: 1px solid rgba(224, 49, 49, 0.25);
+        }
 
         .activity-log {
           flex: 1;

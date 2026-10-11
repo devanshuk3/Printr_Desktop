@@ -60,7 +60,7 @@ function App() {
           display: flex;
           width: 100vw;
           height: 100vh;
-          background: #F8F9FA;
+          background: var(--primary-bg);
           overflow: hidden;
         }
 

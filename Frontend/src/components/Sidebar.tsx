@@ -6,7 +6,7 @@ import {
   Wallet, 
   LogOut, 
 } from 'lucide-react';
-import logo from '../assets/Printr_Logo_transparent_White.png';
+import logo from '../assets/Printr_app_icon.png';
 
 interface SidebarProps {
   activeTab: string;
@@ -78,11 +78,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) 
         }
 
         .sidebar-logo-img {
-          width: 32px;
-          height: 32px;
-          background: #000;
-          padding: 6px;
-          border-radius: 8px;
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          object-fit: contain;
+          filter: drop-shadow(0 4px 12px rgba(28, 126, 214, 0.3));
         }
 
         .admin-title {
@@ -117,14 +117,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) 
         }
 
         .nav-item:hover {
-          background: rgba(255, 255, 255, 0.05);
-          color: white;
+          background: rgba(28, 126, 214, 0.12);
+          color: #E7F5FF;
         }
 
         .nav-item.active {
-          background: #121212;
+          background: linear-gradient(135deg, #1C7ED6, #1864AB);
           color: white;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+          font-weight: 600;
+          box-shadow: 0 4px 16px rgba(28, 126, 214, 0.35);
         }
 
         .sidebar-footer {

@@ -7,7 +7,7 @@ import {
   Loader2,
   CheckCircle,
 } from "lucide-react";
-import logo from "../assets/Printr_Logo_transparent_White.png";
+import logo from "../assets/Printr_app_icon.png";
 
 import { API_BASE_URL, getHeaders } from "../config";
 
@@ -22,6 +22,7 @@ interface PrintJob {
   status: string;
   copies?: number;
   isPrefFetched?: boolean;
+  page_size?: string;
 }
 
 interface DashboardProps {
@@ -534,6 +535,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
             | "two-sided-long-edge"
             | "two-sided-short-edge",
           isColor: isColor,
+          pageSize: job.page_size || "A4",
         };
 
         const pathParts = key.split("/");
@@ -600,6 +602,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
                       printOptions.isColor = true;
                     else if (prefs.colorMode === "Black & White")
                       printOptions.isColor = false;
+                    if (prefs.pageSize) printOptions.pageSize = prefs.pageSize;
                     break;
                   }
                 }
@@ -624,11 +627,11 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
 
         // --- ADDED ALERT FOR VERIFICATION ---
         alert(
-          `PRINTING: ${name}\nCopies: ${printOptions.copies}\nPrinter: ${printerName}`,
+          `PRINTING: ${name}\nCopies: ${printOptions.copies}\nPrinter: ${printerName}\nSize: ${printOptions.pageSize}`,
         );
 
         console.log(
-          `[Printer] Issuing print-file IPC with copies: ${printOptions.copies}, isColor: ${printOptions.isColor}`,
+          `[Printer] Issuing print-file IPC with copies: ${printOptions.copies}, isColor: ${printOptions.isColor}, pageSize: ${printOptions.pageSize}`,
         );
         const printResult = await ipcRenderer.invoke("print-file", {
           filePath: tempPath,
@@ -636,6 +639,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
           isColor: printOptions.isColor,
           copies: printOptions.copies,
           sides: printOptions.sides,
+          pageSize: printOptions.pageSize,
         });
 
         if (!printResult.success) {
@@ -1087,20 +1091,20 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         }
 
         .system-header {
-          background: #000000;
-          color: rgba(255, 255, 255, 0.6);
-          padding: 10px 24px;
+          background: #0B132B;
+          color: rgba(255, 255, 255, 0.75);
+          padding: 8px 24px;
           font-size: 11px;
           display: flex;
           justify-content: center;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 1.5px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          border-bottom: 1px solid rgba(28, 126, 214, 0.2);
         }
 
         .header-brand { display: flex; align-items: center; gap: 10px; }
-        .header-logo-tiny { height: 20px; background: #000; padding: 4px; border-radius: 6px; }
+        .header-logo-tiny { height: 22px; width: 22px; border-radius: 6px; object-fit: contain; }
 
         .dashboard-content {
           flex: 1;
@@ -1135,7 +1139,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         }
 
         .refresh-btn-premium {
-          background: #000;
+          background: linear-gradient(135deg, #1C7ED6, #1864AB);
           color: white;
           border: none;
           padding: 10px 20px;
@@ -1147,13 +1151,13 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
           font-weight: 600;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          box-shadow: 0 4px 14px rgba(28, 126, 214, 0.25);
         }
 
         .refresh-btn-premium:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-          background: #111;
+          box-shadow: 0 8px 20px rgba(28, 126, 214, 0.35);
+          background: linear-gradient(135deg, #1971C2, #155799);
         }
 
         .refresh-btn-premium:active { transform: translateY(0); }
@@ -1332,8 +1336,9 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         }
 
         .order-id-badge {
-          background: #000;
-          color: white;
+          background: #EFF6FF;
+          color: #1D4ED8;
+          border: 1px solid #BFDBFE;
           padding: 4px 8px;
           border-radius: 6px;
           font-weight: 800;
@@ -1455,7 +1460,8 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         }
 
         .copies-override-input:focus {
-          border-color: #000;
+          border-color: #1C7ED6;
+          box-shadow: 0 0 0 2px rgba(28, 126, 214, 0.15);
         }
 
         /* Hide arrows/spinners in number input */
@@ -1486,7 +1492,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
           border-color: #111;
         }
 
-        .icon-action-btn.print:hover:not(:disabled) { background: #000; color: white; border-color: #000; }
+        .icon-action-btn.print:hover:not(:disabled) { background: #1C7ED6; color: white; border-color: #1C7ED6; box-shadow: 0 4px 12px rgba(28, 126, 214, 0.3); }
         .icon-action-btn.view:hover:not(:disabled) { background: #F8FAFC; color: #1E293B; border-color: #CBD5E1; }
         .icon-action-btn.cancel:hover:not(:disabled) { background: #FFF1F2; color: #E11D48; border-color: #FDA4AF; }
 
@@ -1519,7 +1525,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
         .pref-details-box { display: flex; flex-direction: column; gap: 4px; }
         .pref-mode { display: flex; align-items: center; gap: 8px; }
         .copies-badge { 
-          background: #111; color: white; padding: 2px 6px; border-radius: 4px; 
+          background: #1C7ED6; color: white; padding: 2px 6px; border-radius: 4px; 
           font-size: 10px; font-weight: 800; transform: translateY(-1px);
         }
         .pref-meta { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #666; font-weight: 500; }
