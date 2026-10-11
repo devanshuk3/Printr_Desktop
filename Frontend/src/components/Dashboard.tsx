@@ -211,7 +211,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     }
   };
 
-  const [pollInterval, setPollInterval] = useState(30000);
+  const pollInterval = 30000;
 
   useEffect(() => {
     fetchVendorPrices();
@@ -291,14 +291,7 @@ const Dashboard: React.FC<DashboardProps> = ({ vendorId }) => {
     return () => clearInterval(cleanupInterval);
   }, []); // Run once on mount
 
-  useEffect(() => {
-    // Adaptive Polling: Slow down when idle (60s), speed up when active (20s)
-    if (activeQueue.length === 0 && pollInterval !== 60000) {
-      setPollInterval(60000);
-    } else if (activeQueue.length > 0 && pollInterval !== 20000) {
-      setPollInterval(20000);
-    }
-  }, [activeQueue.length]);
+
 
   const handleRefresh = () => {
     setRefreshing(true);

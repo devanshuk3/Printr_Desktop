@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Search, History, CheckCircle, Printer, XCircle, FileText } from "lucide-react";
+import {
+  Search,
+  History,
+  CheckCircle,
+  Printer,
+  XCircle,
+  FileText,
+  RefreshCcw,
+} from "lucide-react";
 import { API_BASE_URL, getHeaders } from "../config";
 
 interface CODVerificationProps {
@@ -88,6 +96,14 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
     }
   };
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([fetchHistory(), fetchCODOrders(), fetchVendorConfig()]);
+    setIsRefreshing(false);
+  };
+
   useEffect(() => {
     fetchVendorConfig();
     fetchHistory();
@@ -95,12 +111,15 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
     const interval = setInterval(() => {
       fetchHistory();
       fetchCODOrders();
-    }, 10000);
+    }, 30000); // 30-second polling interval
     return () => clearInterval(interval);
   }, [vendorId]);
 
   // Clean and find the selected order record
-  const cleanId = orderId.replace(/^[#\s]+/, "").replace(/^ORD-?/i, "").trim();
+  const cleanId = orderId
+    .replace(/^[#\s]+/, "")
+    .replace(/^ORD-?/i, "")
+    .trim();
   const selectedOrder =
     codOrders.find(
       (o: any) =>
@@ -171,7 +190,10 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
 
   const handlePrint = async () => {
     if (!orderId.trim()) {
-      setMessage({ text: "Please enter or select an Order ID to print", type: "error" });
+      setMessage({
+        text: "Please enter or select an Order ID to print",
+        type: "error",
+      });
       return;
     }
 
@@ -184,7 +206,8 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
     }
 
     const key = selectedOrder.file_key || (selectedOrder as any).fileKey;
-    const name = selectedOrder.file_name || (selectedOrder as any).fileName || "document";
+    const name =
+      selectedOrder.file_name || (selectedOrder as any).fileName || "document";
     const isColor = selectedOrder.is_color || false;
 
     if (!key) {
@@ -214,7 +237,8 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
       const data = await response.json();
       if (!response.ok || !data.downloadUrl) {
         throw new Error(
-          data.message || "Failed to retrieve secure download link from server.",
+          data.message ||
+            "Failed to retrieve secure download link from server.",
         );
       }
 
@@ -367,7 +391,17 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
   return (
     <div className="cod-container">
       <div className="cod-list-sidebar glass-panel">
-        <h3>Pending COD Orders</h3>
+        <div className="cod-sidebar-header">
+          <h3>Pending COD Orders</h3>
+          <button
+            className="cod-refresh-icon-btn"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh Orders"
+          >
+            <RefreshCcw size={16} className={isRefreshing ? "spinning" : ""} />
+          </button>
+        </div>
         <div className="cod-orders-list">
           {codOrders.length === 0 ? (
             <p className="no-cod">No pending COD orders</p>
@@ -391,7 +425,9 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
                     <span className="order-sender">
                       {order.sender_name || "Customer"}
                     </span>
-                    <span className="order-pages">{order.page_count} pages</span>
+                    <span className="order-pages">
+                      {order.page_count} pages
+                    </span>
                   </div>
                 </div>
               );
@@ -503,9 +539,7 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
               disabled={isPrinting || isProcessing || !orderId.trim()}
             >
               <Printer size={18} />
-              <span>
-                {isPrinting ? "Spooling Print..." : "Print Files"}
-              </span>
+              <span>{isPrinting ? "Spooling Print..." : "Print Files"}</span>
             </button>
           </div>
 
@@ -593,11 +627,51 @@ const CODVerification: React.FC<CODVerificationProps> = ({ vendorId }) => {
           box-shadow: var(--shadow-sm);
         }
 
+        .cod-sidebar-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 20px;
+        }
+
         .cod-list-sidebar h3 {
           font-size: 18px;
-          margin-bottom: 20px;
+          margin: 0;
           color: var(--text-primary);
           font-weight: 600;
+        }
+
+        .cod-refresh-icon-btn {
+          background: rgba(28, 126, 214, 0.08);
+          border: 1px solid rgba(28, 126, 214, 0.2);
+          color: var(--accent-blue);
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .cod-refresh-icon-btn:hover:not(:disabled) {
+          background: var(--accent-blue);
+          color: #ffffff;
+          transform: rotate(45deg);
+        }
+
+        .cod-refresh-icon-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .spinning {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          100% { transform: rotate(360deg); }
         }
 
         .cod-orders-list {
